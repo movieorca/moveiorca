@@ -174,10 +174,45 @@ function doGet(e) {
  * Handle HTTP POST requests
  */
 function doPost(e) {
-  const data = JSON.parse(e.postData.contents);
-  const action = e.parameter.action || data.action || '';
-
   try {
+    // Log the incoming request for debugging
+    Logger.log('Received POST request');
+    Logger.log('Parameter: ' + JSON.stringify(e.parameter));
+
+    let data = {};
+    let action = '';
+
+    // Get action from URL parameter
+    if (e.parameter && e.parameter.action) {
+      action = e.parameter.action;
+      Logger.log('Action from parameter: ' + action);
+    }
+
+    // Parse POST body
+    if (e.postData && e.postData.contents) {
+      try {
+        data = JSON.parse(e.postData.contents);
+        Logger.log('Parsed data: ' + JSON.stringify(data));
+
+        // If action not in parameter, try to get from body
+        if (!action && data.action) {
+          action = data.action;
+          Logger.log('Action from body: ' + action);
+        }
+      } catch (parseError) {
+        Logger.log('JSON parse error: ' + parseError);
+        return jsonResponse({ success: false, message: 'Invalid JSON data' });
+      }
+    }
+
+    if (!action) {
+      Logger.log('No action specified');
+      return jsonResponse({ success: false, message: 'No action specified' });
+    }
+
+    Logger.log('Processing action: ' + action);
+
+    // Route to appropriate handler
     switch(action) {
       case 'register':
         return registerUser(data);
@@ -194,21 +229,43 @@ function doPost(e) {
       case 'updateActionRequest':
         return updateActionRequest(data);
       default:
-        return jsonResponse({ success: false, message: 'Invalid endpoint' });
+        Logger.log('Invalid endpoint: ' + action);
+        return jsonResponse({ success: false, message: 'Invalid endpoint: ' + action });
     }
   } catch (error) {
-    Logger.log('doPost error: ' + error);
-    return jsonResponse({ success: false, message: error.toString() });
+    Logger.log('doPost error: ' + error.toString());
+    Logger.log('Error stack: ' + error.stack);
+    return jsonResponse({ success: false, message: 'Server error: ' + error.toString() });
   }
 }
 
 /**
- * Create JSON response
+ * Handle OPTIONS requests for CORS preflight
+ */
+function doOptions(e) {
+  return ContentService
+    .createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT)
+    .setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400'
+    });
+}
+
+/**
+ * Create JSON response with CORS headers
  */
 function jsonResponse(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
 }
 
 // ==================== USER ENDPOINTS ====================
