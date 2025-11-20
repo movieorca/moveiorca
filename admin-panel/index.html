@@ -416,7 +416,7 @@
 
             const handleStatusUpdate = async (orderId, newStatus) => {
                 try {
-                    const response = await fetch(`${API_URL}/updateOrderStatus`, {
+                    const response = await fetch(`${API_URL}?action=updateOrderStatus`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ orderId, status: newStatus })
@@ -742,7 +742,7 @@
                 }
 
                 try {
-                    const response = await fetch(`${API_URL}/addServerDetails`, {
+                    const response = await fetch(`${API_URL}?action=addServerDetails`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(formData)
@@ -880,7 +880,7 @@
         const ActionRequestsPage = ({ data, onRefresh, showToast }) => {
             const handleComplete = async (requestId) => {
                 try {
-                    const response = await fetch(`${API_URL}/updateActionRequest`, {
+                    const response = await fetch(`${API_URL}?action=updateActionRequest`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ requestId, status: 'completed' })
@@ -1087,10 +1087,10 @@
                 setLoading(true);
                 try {
                     const [usersRes, ordersRes, serversRes, actionsRes] = await Promise.all([
-                        fetch(`${API_URL}/getAllUsers`),
-                        fetch(`${API_URL}/getAllOrders`),
-                        fetch(`${API_URL}/getAllServers`),
-                        fetch(`${API_URL}/getAllActionRequests`)
+                        fetch(`${API_URL}?action=getAllUsers`),
+                        fetch(`${API_URL}?action=getAllOrders`),
+                        fetch(`${API_URL}?action=getAllServers`),
+                        fetch(`${API_URL}?action=getAllActionRequests`)
                     ]);
 
                     const [usersData, ordersData, serversData, actionsData] = await Promise.all([
