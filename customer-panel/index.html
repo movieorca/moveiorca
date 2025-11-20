@@ -98,7 +98,7 @@
         const { useState, useEffect } = React;
 
         // API Configuration
-        const API_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+        const API_URL = 'https://script.google.com/macros/s/AKfycbx84TC0-sI-nLrl19glwTiAxa4sIxGyKs8tPxnOy1pOARXYnFzYunzEp-f4TDb_WP7B/exec';
 
         // RDP Plans Data
         const PLANS = [
@@ -876,7 +876,7 @@
 
             const loadOrders = async () => {
                 try {
-                    const response = await fetch(`${API_URL}/getOrders?email=${user.email}`);
+                    const response = await fetch(`${API_URL}?action=getOrders&email=${user.email}`);
                     const data = await response.json();
 
                     if (data.success) {
