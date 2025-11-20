@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDP.SALE - Premium RDP Services (TEST MODE)</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React and ReactDOM CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Babel Standalone for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #ecfeff 0%, #dbeafe 100%);
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #06b6d4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            min-width: 300px;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: -12px;
+            right: 20px;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-mode-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #f59e0b;
+            color: white;
+            text-align: center;
+            padding: 8px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-mode-banner">
+        🧪 TEST MODE - Using Mock Data (No Backend Required)
+    </div>
+    <div style="margin-top: 40px;" id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // TEST MODE - MOCK API
+        const MOCK_API = {
+            register: (data) => {
+                return Promise.resolve({
+                    success: true,
+                    user: {
+                        userId: 'USER-TEST-' + Date.now(),
+                        name: data.name,
+                        email: data.email,
+                        phone: data.phone,
+                        address: data.address
+                    }
+                });
+            },
+            login: (data) => {
+                return Promise.resolve({
+                    success: true,
+                    user: {
+                        userId: 'USER-TEST-123',
+                        name: 'Test User',
+                        email: data.email,
+                        phone: '03001234567',
+                        address: 'Test Address'
+                    }
+                });
+            },
+            createOrder: (data) => {
+                return Promise.resolve({
+                    success: true,
+                    orderId: 'ORD-TEST-' + Date.now(),
+                    message: 'Order created successfully'
+                });
+            },
+            getOrders: (email) => {
+                return Promise.resolve({
+                    success: true,
+                    orders: [
+                        {
+                            orderID: 'ORD-TEST-001',
+                            userEmail: email,
+                            planName: 'Basic',
+                            price: 2799,
+                            status: 'active',
+                            transactionID: 'TXN123456',
+                            orderDate: new Date().toISOString(),
+                            serverIp: '192.168.1.100',
+                            serverUsername: 'admin',
+                            serverPassword: 'SecurePass123',
+                            serverStatus: 'active'
+                        },
+                        {
+                            orderID: 'ORD-TEST-002',
+                            userEmail: email,
+                            planName: 'Pro',
+                            price: 7499,
+                            status: 'processing',
+                            transactionID: 'TXN789012',
+                            orderDate: new Date().toISOString()
+                        }
+                    ]
+                });
+            },
+            serverAction: (data) => {
+                return Promise.resolve({
+                    success: true,
+                    requestId: 'REQ-TEST-' + Date.now(),
+                    message: 'Action request submitted successfully'
+                });
+            }
+        };
+
+        // RDP Plans Data
+        const PLANS = [
+            {
+                id: 1,
+                name: 'Mini',
+                price: 1999,
+                cpu: '4 vCPU',
+                ram: '6GB RAM',
+                storage: '120GB SSD',
+                traffic: '3TB Traffic/Month'
+            },
+            {
+                id: 2,
+                name: 'Basic',
+                price: 2799,
+                cpu: '4 vCPU',
+                ram: '10GB RAM',
+                storage: '100GB NVMe / 200GB SSD',
+                traffic: '32TB Traffic',
+                popular: true
+            },
+            {
+                id: 3,
+                name: 'Plus',
+                price: 3799,
+                cpu: '6 vCPU',
+                ram: '18GB RAM',
+                storage: '150GB NVMe / 300GB SSD',
+                traffic: '32TB Traffic'
+            },
+            {
+                id: 4,
+                name: 'Pro',
+                price: 7499,
+                cpu: '8 vCPU',
+                ram: '36GB RAM',
+                storage: '250GB NVMe / 500GB SSD',
+                traffic: '32TB Traffic'
+            },
+            {
+                id: 5,
+                name: 'Ultra',
+                price: 10999,
+                cpu: '12 vCPU',
+                ram: '48GB RAM',
+                storage: '250GB NVMe / 500GB SSD',
+                traffic: '32TB Traffic'
+            },
+            {
+                id: 6,
+                name: 'Max',
+                price: 17999,
+                cpu: '16 vCPU',
+                ram: '64GB RAM',
+                storage: '300GB NVMe / 600GB SSD',
+                traffic: '32TB Traffic'
+            },
+            {
+                id: 7,
+                name: 'Extreme',
+                price: 23699,
+                cpu: '18 vCPU',
+                ram: '96GB RAM',
+                storage: '350GB NVMe / 700GB SSD',
+                traffic: '32TB Traffic'
+            }
+        ];
+
+        // Payment Details
+        const PAYMENT_INFO = {
+            accountNumber: '03316873505',
+            accountHolder: 'Shaista Nawaz'
+        };
+
+        // Toast Component
+        const Toast = ({ message, type, onClose }) => {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 4000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+
+            const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+
+            return (
+                <div className={`toast ${bgColor} text-white`}>
+                    <div className="flex items-center justify-between">
+                        <span className="font-medium">{message}</span>
+                        <button onClick={onClose} className="ml-4 text-white hover:text-gray-200">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // Header Component
+        const Header = ({ user, cartCount, onNavigate, onLogout }) => {
+            const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+            return (
+                <header className="bg-white shadow-md sticky top-0 z-50">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between items-center py-4">
+                            <div
+                                className="flex items-center space-x-2 cursor-pointer"
+                                onClick={() => onNavigate('plans')}
+                            >
+                                <svg className="w-8 h-8 text-cyan-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z" />
+                                </svg>
+                                <span className="text-2xl font-bold text-cyan-600">RDP.SALE</span>
+                            </div>
+
+                            <nav className="hidden md:flex items-center space-x-6">
+                                <button
+                                    onClick={() => onNavigate('plans')}
+                                    className="text-gray-700 hover:text-cyan-600 font-medium transition"
+                                >
+                                    Plans
+                                </button>
+                                {user && (
+                                    <button
+                                        onClick={() => onNavigate('dashboard')}
+                                        className="text-gray-700 hover:text-cyan-600 font-medium transition"
+                                    >
+                                        Dashboard
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => onNavigate('cart')}
+                                    className="relative text-gray-700 hover:text-cyan-600 transition"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                    {cartCount > 0 && (
+                                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                                            {cartCount}
+                                        </span>
+                                    )}
+                                </button>
+                                {user ? (
+                                    <div className="flex items-center space-x-4">
+                                        <span className="text-gray-700 font-medium">{user.name}</span>
+                                        <button
+                                            onClick={onLogout}
+                                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition"
+                                        >
+                                            Logout
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => onNavigate('login')}
+                                        className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg font-medium transition"
+                                    >
+                                        Login
+                                    </button>
+                                )}
+                            </nav>
+
+                            <button
+                                className="md:hidden text-gray-700"
+                                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {mobileMenuOpen && (
+                            <div className="md:hidden pb-4 space-y-2">
+                                <button
+                                    onClick={() => { onNavigate('plans'); setMobileMenuOpen(false); }}
+                                    className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                                >
+                                    Plans
+                                </button>
+                                {user && (
+                                    <button
+                                        onClick={() => { onNavigate('dashboard'); setMobileMenuOpen(false); }}
+                                        className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                                    >
+                                        Dashboard
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => { onNavigate('cart'); setMobileMenuOpen(false); }}
+                                    className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                                >
+                                    Cart {cartCount > 0 && `(${cartCount})`}
+                                </button>
+                                {user ? (
+                                    <>
+                                        <div className="px-4 py-2 text-gray-700 font-medium">{user.name}</div>
+                                        <button
+                                            onClick={() => { onLogout(); setMobileMenuOpen(false); }}
+                                            className="block w-full text-left px-4 py-2 bg-red-500 text-white rounded-lg"
+                                        >
+                                            Logout
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={() => { onNavigate('login'); setMobileMenuOpen(false); }}
+                                        className="block w-full text-left px-4 py-2 bg-cyan-500 text-white rounded-lg"
+                                    >
+                                        Login
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </header>
+            );
+        };
+
+        // Plan Card Component
+        const PlanCard = ({ plan, onAddToCart }) => {
+            return (
+                <div className="relative bg-white rounded-xl shadow-lg p-6 card-hover">
+                    {plan.popular && (
+                        <div className="popular-badge">MOST POPULAR</div>
+                    )}
+                    <div className="text-center mb-4">
+                        <h3 className="text-2xl font-bold text-gray-800 mb-2">{plan.name}</h3>
+                        <div className="flex items-baseline justify-center">
+                            <span className="text-4xl font-bold text-cyan-600">Rs {plan.price.toLocaleString()}</span>
+                            <span className="text-gray-500 ml-2">/month</span>
+                        </div>
+                    </div>
+                    <div className="space-y-3 mb-6">
+                        <div className="flex items-center text-gray-700">
+                            <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span>{plan.cpu}</span>
+                        </div>
+                        <div className="flex items-center text-gray-700">
+                            <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span>{plan.ram}</span>
+                        </div>
+                        <div className="flex items-center text-gray-700">
+                            <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span>{plan.storage}</span>
+                        </div>
+                        <div className="flex items-center text-gray-700">
+                            <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span>{plan.traffic}</span>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => onAddToCart(plan)}
+                        className={`w-full py-3 rounded-lg font-semibold transition ${
+                            plan.popular
+                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white'
+                                : 'bg-cyan-500 hover:bg-cyan-600 text-white'
+                        }`}
+                    >
+                        Order Now
+                    </button>
+                </div>
+            );
+        };
+
+        // Plans Page
+        const PlansPage = ({ onAddToCart, showToast }) => {
+            return (
+                <div className="gradient-bg min-h-screen py-12">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="text-center mb-12">
+                            <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+                                Choose Your Perfect RDP Plan
+                            </h1>
+                            <p className="text-xl text-gray-600">
+                                Premium Remote Desktop Services with Unbeatable Performance
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {PLANS.map(plan => (
+                                <PlanCard
+                                    key={plan.id}
+                                    plan={plan}
+                                    onAddToCart={(plan) => {
+                                        onAddToCart(plan);
+                                        showToast(`${plan.name} plan added to cart!`, 'success');
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Cart Page
+        const CartPage = ({ cart, onRemoveFromCart, onNavigate }) => {
+            const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
+
+            if (cart.length === 0) {
+                return (
+                    <div className="gradient-bg min-h-screen py-12">
+                        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                                <svg className="w-24 h-24 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <h2 className="text-2xl font-bold text-gray-800 mb-4">Your cart is empty</h2>
+                                <p className="text-gray-600 mb-6">Add some RDP plans to get started!</p>
+                                <button
+                                    onClick={() => onNavigate('plans')}
+                                    className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-3 rounded-lg font-semibold transition"
+                                >
+                                    Continue Shopping
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="gradient-bg min-h-screen py-12">
+                    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <h1 className="text-3xl font-bold text-gray-800 mb-8">Shopping Cart</h1>
+
+                        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                            <div className="space-y-4">
+                                {cart.map((item, index) => (
+                                    <div key={index} className="flex items-center justify-between border-b pb-4 last:border-b-0 last:pb-0">
+                                        <div className="flex-1">
+                                            <h3 className="text-lg font-bold text-gray-800">{item.name} Plan</h3>
+                                            <div className="text-sm text-gray-600 mt-1 space-y-1">
+                                                <div>{item.cpu} • {item.ram}</div>
+                                                <div>{item.storage}</div>
+                                                <div>{item.traffic}</div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right ml-4">
+                                            <div className="text-xl font-bold text-cyan-600 mb-2">
+                                                Rs {item.price.toLocaleString()}
+                                            </div>
+                                            <button
+                                                onClick={() => onRemoveFromCart(index)}
+                                                className="text-red-500 hover:text-red-700 text-sm font-medium transition"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="border-t pt-4 mt-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-gray-700">Subtotal:</span>
+                                    <span className="text-xl font-semibold text-gray-800">Rs {subtotal.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xl font-bold text-gray-800">Total:</span>
+                                    <span className="text-2xl font-bold text-cyan-600">Rs {subtotal.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <button
+                                onClick={() => onNavigate('plans')}
+                                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition"
+                            >
+                                Continue Shopping
+                            </button>
+                            <button
+                                onClick={() => onNavigate('checkout')}
+                                className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-lg font-semibold transition"
+                            >
+                                Proceed to Checkout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Login Modal
+        const LoginModal = ({ onClose, onLogin, showToast }) => {
+            const [isSignup, setIsSignup] = useState(false);
+            const [loading, setLoading] = useState(false);
+            const [formData, setFormData] = useState({
+                name: '',
+                email: '',
+                phone: '',
+                address: '',
+                password: ''
+            });
+
+            const handleSubmit = async () => {
+                if (isSignup && (!formData.name || !formData.email || !formData.phone || !formData.address || !formData.password)) {
+                    showToast('Please fill in all fields', 'error');
+                    return;
+                }
+                if (!isSignup && (!formData.email || !formData.password)) {
+                    showToast('Please enter email and password', 'error');
+                    return;
+                }
+
+                setLoading(true);
+
+                const data = isSignup ? await MOCK_API.register(formData) : await MOCK_API.login(formData);
+
+                setLoading(false);
+
+                if (data.success) {
+                    showToast(isSignup ? 'Account created successfully!' : 'Login successful!', 'success');
+                    onLogin(data.user);
+                    onClose();
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold text-gray-800">
+                                    {isSignup ? 'Create Account' : 'Login'}
+                                </h2>
+                                <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                {isSignup && (
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                        className="w-full px-4 py-2 border rounded-lg"
+                                        placeholder="Full Name"
+                                    />
+                                )}
+                                <input
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                    className="w-full px-4 py-2 border rounded-lg"
+                                    placeholder="Email"
+                                />
+                                {isSignup && (
+                                    <>
+                                        <input
+                                            type="tel"
+                                            value={formData.phone}
+                                            onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                            className="w-full px-4 py-2 border rounded-lg"
+                                            placeholder="Phone"
+                                        />
+                                        <textarea
+                                            value={formData.address}
+                                            onChange={(e) => setFormData({...formData, address: e.target.value})}
+                                            className="w-full px-4 py-2 border rounded-lg"
+                                            placeholder="Address"
+                                            rows="2"
+                                        />
+                                    </>
+                                )}
+                                <input
+                                    type="password"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                    className="w-full px-4 py-2 border rounded-lg"
+                                    placeholder="Password"
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleSubmit}
+                                disabled={loading}
+                                className="w-full mt-6 bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-lg font-semibold"
+                            >
+                                {loading ? 'Please wait...' : (isSignup ? 'Create Account' : 'Login')}
+                            </button>
+
+                            <div className="mt-4 text-center">
+                                <button
+                                    onClick={() => setIsSignup(!isSignup)}
+                                    className="text-cyan-600 hover:text-cyan-700 font-medium"
+                                >
+                                    {isSignup ? 'Already have an account? Login' : "Don't have an account? Sign up"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Checkout Page
+        const CheckoutPage = ({ cart, user, onNavigate, showToast, onClearCart }) => {
+            const [loading, setLoading] = useState(false);
+            const [transactionId, setTransactionId] = useState('');
+            const [screenshot, setScreenshot] = useState(null);
+
+            const total = cart.reduce((sum, item) => sum + item.price, 0);
+
+            const handleFileChange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setScreenshot(reader.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const handleSubmit = async () => {
+                if (!transactionId || !screenshot) {
+                    showToast('Please upload payment screenshot and enter transaction ID', 'error');
+                    return;
+                }
+
+                setLoading(true);
+
+                await Promise.all(cart.map(plan => MOCK_API.createOrder({
+                    userEmail: user.email,
+                    planName: plan.name,
+                    price: plan.price,
+                    paymentScreenshot: screenshot,
+                    transactionId: transactionId
+                })));
+
+                setLoading(false);
+                showToast('Order placed successfully!', 'success');
+                onClearCart();
+                setTimeout(() => onNavigate('dashboard'), 2000);
+            };
+
+            return (
+                <div className="gradient-bg min-h-screen py-12">
+                    <div className="max-w-4xl mx-auto px-4">
+                        <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div className="bg-white p-6 rounded-xl">
+                                <h2 className="text-xl font-bold mb-4">Order Summary</h2>
+                                {cart.map((item, i) => (
+                                    <div key={i} className="flex justify-between mb-2">
+                                        <span>{item.name} Plan</span>
+                                        <span>Rs {item.price.toLocaleString()}</span>
+                                    </div>
+                                ))}
+                                <div className="border-t pt-4 mt-4">
+                                    <div className="flex justify-between text-xl font-bold">
+                                        <span>Total:</span>
+                                        <span className="text-cyan-600">Rs {total.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-6 rounded-xl">
+                                <h2 className="text-xl font-bold mb-4">Payment Details</h2>
+                                <div className="bg-cyan-50 p-4 rounded-lg mb-4">
+                                    <p className="font-bold">Easypaisa Payment</p>
+                                    <p className="text-sm">Account: {PAYMENT_INFO.accountNumber}</p>
+                                    <p className="text-sm">Name: {PAYMENT_INFO.accountHolder}</p>
+                                </div>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                    className="w-full p-2 border rounded-lg mb-4"
+                                />
+                                <input
+                                    type="text"
+                                    value={transactionId}
+                                    onChange={(e) => setTransactionId(e.target.value)}
+                                    placeholder="Transaction ID"
+                                    className="w-full p-2 border rounded-lg mb-4"
+                                />
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={loading}
+                                    className="w-full bg-cyan-500 text-white py-3 rounded-lg font-semibold"
+                                >
+                                    {loading ? 'Processing...' : 'Submit Payment'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Dashboard Page
+        const DashboardPage = ({ user, showToast }) => {
+            const [orders, setOrders] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                MOCK_API.getOrders(user.email).then(data => {
+                    setOrders(data.orders);
+                    setLoading(false);
+                });
+            }, []);
+
+            const handleServerAction = async (orderId, action) => {
+                if (!confirm(`Are you sure you want to ${action.toLowerCase()} this server?`)) return;
+                await MOCK_API.serverAction({ orderId, userEmail: user.email, action });
+                showToast(`${action} request submitted (~9 minutes)`, 'success');
+            };
+
+            const getStatusBadge = (status) => {
+                const config = {
+                    pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Payment Pending' },
+                    processing: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Installing (~30 mins)' },
+                    active: { bg: 'bg-green-100', text: 'text-green-800', label: 'Active' },
+                    suspended: { bg: 'bg-red-100', text: 'text-red-800', label: 'Suspended' }
+                };
+                const c = config[status] || config.pending;
+                return <span className={`${c.bg} ${c.text} px-3 py-1 rounded-full text-sm font-semibold`}>{c.label}</span>;
+            };
+
+            if (loading) return <div className="gradient-bg min-h-screen flex items-center justify-center"><div className="spinner"></div></div>;
+
+            return (
+                <div className="gradient-bg min-h-screen py-12">
+                    <div className="max-w-6xl mx-auto px-4">
+                        <h1 className="text-3xl font-bold mb-2">My Dashboard</h1>
+                        <p className="text-gray-600 mb-8">Welcome back, {user.name}!</p>
+
+                        <div className="space-y-6">
+                            {orders.map((order, i) => (
+                                <div key={i} className="bg-white p-6 rounded-xl">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <div>
+                                            <h3 className="text-xl font-bold">{order.planName} Plan</h3>
+                                            <p className="text-sm text-gray-600">Order ID: {order.orderID}</p>
+                                        </div>
+                                        {getStatusBadge(order.status)}
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Price:</span>
+                                        <span className="font-bold text-cyan-600">Rs {order.price.toLocaleString()}</span>
+                                    </div>
+
+                                    {order.status === 'active' && order.serverIp && (
+                                        <div className="mt-4 bg-gray-50 p-4 rounded-lg">
+                                            <h4 className="font-bold mb-3">Server Details</h4>
+                                            <div className="grid md:grid-cols-3 gap-4 mb-4">
+                                                <div>
+                                                    <span className="text-sm text-gray-600">IP:</span>
+                                                    <p className="font-mono font-bold">{order.serverIp}</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-sm text-gray-600">Username:</span>
+                                                    <p className="font-mono font-bold">{order.serverUsername}</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-sm text-gray-600">Password:</span>
+                                                    <p className="font-mono font-bold">{order.serverPassword}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-3">
+                                                <button
+                                                    onClick={() => handleServerAction(order.orderID, 'Start')}
+                                                    className="bg-green-500 text-white px-6 py-2 rounded-lg"
+                                                >
+                                                    Start
+                                                </button>
+                                                <button
+                                                    onClick={() => handleServerAction(order.orderID, 'Restart')}
+                                                    className="bg-blue-500 text-white px-6 py-2 rounded-lg"
+                                                >
+                                                    Restart
+                                                </button>
+                                                <button
+                                                    onClick={() => handleServerAction(order.orderID, 'Stop')}
+                                                    className="bg-red-500 text-white px-6 py-2 rounded-lg"
+                                                >
+                                                    Stop
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Main App
+        const App = () => {
+            const [currentPage, setCurrentPage] = useState('plans');
+            const [user, setUser] = useState(null);
+            const [cart, setCart] = useState([]);
+            const [toast, setToast] = useState(null);
+
+            useEffect(() => {
+                const savedUser = localStorage.getItem('rdp_user_test');
+                const savedCart = localStorage.getItem('rdp_cart_test');
+                if (savedUser) setUser(JSON.parse(savedUser));
+                if (savedCart) setCart(JSON.parse(savedCart));
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('rdp_cart_test', JSON.stringify(cart));
+            }, [cart]);
+
+            const handleLogin = (userData) => {
+                setUser(userData);
+                localStorage.setItem('rdp_user_test', JSON.stringify(userData));
+            };
+
+            const handleLogout = () => {
+                setUser(null);
+                localStorage.removeItem('rdp_user_test');
+                setCurrentPage('plans');
+                setToast({ message: 'Logged out', type: 'success' });
+            };
+
+            const handleNavigate = (page) => {
+                if ((page === 'checkout' || page === 'dashboard') && !user) {
+                    setCurrentPage('login');
+                    setToast({ message: 'Please login to continue', type: 'info' });
+                    return;
+                }
+                if (page === 'checkout' && cart.length === 0) {
+                    setToast({ message: 'Your cart is empty', type: 'error' });
+                    return;
+                }
+                setCurrentPage(page);
+            };
+
+            return (
+                <>
+                    <Header user={user} cartCount={cart.length} onNavigate={handleNavigate} onLogout={handleLogout} />
+                    {currentPage === 'plans' && <PlansPage onAddToCart={(p) => setCart([...cart, p])} showToast={(m, t) => setToast({message: m, type: t})} />}
+                    {currentPage === 'cart' && <CartPage cart={cart} onRemoveFromCart={(i) => setCart(cart.filter((_, idx) => idx !== i))} onNavigate={handleNavigate} />}
+                    {currentPage === 'checkout' && <CheckoutPage cart={cart} user={user} onNavigate={handleNavigate} showToast={(m, t) => setToast({message: m, type: t})} onClearCart={() => setCart([])} />}
+                    {currentPage === 'dashboard' && <DashboardPage user={user} showToast={(m, t) => setToast({message: m, type: t})} />}
+                    {currentPage === 'login' && <LoginModal onClose={() => setCurrentPage('plans')} onLogin={handleLogin} showToast={(m, t) => setToast({message: m, type: t})} />}
+                    {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+                </>
+            );
+        };
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
