@@ -197,9 +197,8 @@ function doPost(e) {
       });
       Logger.log('Data from parameters: ' + JSON.stringify(data));
     }
-
-    // Parse POST body if it's JSON
-    if (e.postData && e.postData.contents && e.postData.type === 'application/json') {
+    // Only try JSON parsing if we didn't already get data from parameters
+    else if (e.postData && e.postData.contents) {
       try {
         data = JSON.parse(e.postData.contents);
         Logger.log('Parsed JSON data: ' + JSON.stringify(data));
