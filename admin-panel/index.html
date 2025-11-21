@@ -416,9 +416,13 @@
 
             const handleStatusUpdate = async (orderId, newStatus) => {
                 try {
+                    console.log('Updating order:', orderId, 'to status:', newStatus);
+
                     const params = new URLSearchParams();
                     params.append('orderId', orderId);
                     params.append('status', newStatus);
+
+                    console.log('Request params:', params.toString());
 
                     const response = await fetch(`${API_URL}?action=updateOrderStatus`, {
                         method: 'POST',
@@ -427,12 +431,14 @@
                     });
 
                     const result = await response.json();
+                    console.log('Response:', result);
 
                     if (result.success) {
                         showToast('Order status updated successfully', 'success');
                         onRefresh();
                     } else {
-                        showToast('Failed to update status', 'error');
+                        showToast(result.message || 'Failed to update status', 'error');
+                        console.error('Update failed:', result.message);
                     }
                 } catch (error) {
                     showToast('Network error', 'error');
