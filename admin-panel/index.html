@@ -123,11 +123,8 @@
         // API Configuration
         const API_URL = 'https://script.google.com/macros/s/AKfycbzSsUWM2Z8ikITvp6z089EvyN0tDUbXMdjmosrHEKZ8MFF0cnnrTLz17ApGxDDkWynr/exec';
 
-        // Admin Credentials
-        const ADMIN_CREDENTIALS = {
-            email: 'admin@rdp.sale',
-            password: 'Admin@RDP2025'
-        };
+        // Note: Admin credentials are now stored securely in the backend
+        // No more hardcoded passwords in frontend!
 
         // Toast Component
         const Toast = ({ message, type, onClose }) => {
@@ -251,12 +248,31 @@
 
                 setLoading(true);
 
-                // Check credentials
-                if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-                    showToast('Login successful!', 'success');
-                    onLogin({ email, name: 'Admin' });
-                } else {
-                    showToast('Invalid credentials', 'error');
+                try {
+                    // Call backend adminLogin endpoint
+                    const params = new URLSearchParams();
+                    params.append('email', email);
+                    params.append('password', password);
+
+                    const response = await fetch(`${API_URL}?action=adminLogin`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: params.toString()
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showToast('Login successful!', 'success');
+                        onLogin(data.admin);
+                    } else {
+                        showToast(data.message || 'Invalid credentials', 'error');
+                    }
+                } catch (error) {
+                    showToast('Network error. Please try again.', 'error');
+                    console.error('Admin login error:', error);
                 }
 
                 setLoading(false);

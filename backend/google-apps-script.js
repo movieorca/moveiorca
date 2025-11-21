@@ -19,6 +19,13 @@
 const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // Replace with your Google Sheet ID
 const ADMIN_EMAIL = 'admin@rdp.sale'; // Replace with your admin email
 
+// ADMIN CREDENTIALS - Store securely
+// IMPORTANT: After first setup, store these in Script Properties for better security
+const ADMIN_CREDENTIALS = {
+  email: 'admin@rdp.sale',
+  password: 'Admin@RDP2025'  // TODO: Change this to your secure password!
+};
+
 // Sheet names
 const SHEETS = {
   USERS: 'Users',
@@ -227,6 +234,8 @@ function doPost(e) {
         return registerUser(data);
       case 'login':
         return loginUser(data);
+      case 'adminLogin':
+        return adminLogin(data);
       case 'createOrder':
         return createOrder(data);
       case 'serverAction':
@@ -334,6 +343,29 @@ function loginUser(data) {
     });
   } else {
     return jsonResponse({ success: false, message: 'Invalid email or password' });
+  }
+}
+
+/**
+ * Admin login - Separate from regular user login
+ */
+function adminLogin(data) {
+  Logger.log('Admin login attempt for: ' + data.email);
+
+  // Check credentials against ADMIN_CREDENTIALS constant
+  if (data.email === ADMIN_CREDENTIALS.email && data.password === ADMIN_CREDENTIALS.password) {
+    Logger.log('Admin login successful');
+    return jsonResponse({
+      success: true,
+      isAdmin: true,
+      admin: {
+        email: ADMIN_CREDENTIALS.email,
+        name: 'Admin'
+      }
+    });
+  } else {
+    Logger.log('Admin login failed - invalid credentials');
+    return jsonResponse({ success: false, message: 'Invalid admin credentials' });
   }
 }
 
@@ -632,23 +664,75 @@ function addSampleData() {
     'john@example.com',
     'Basic',
     2799,
-    'active',
+    'pending',
     'base64_image_data_here',
     'TXN123456789',
     new Date().toISOString()
   ]);
 
-  // Add sample server
+  // Add sample server (without real password for security)
   const serversSheet = getSheet(SHEETS.SERVER_DETAILS);
   serversSheet.appendRow([
     'ORD-TEST-001',
     'john@example.com',
     '192.168.1.100',
     'admin',
-    'SecurePass123',
+    'HIDDEN_PASSWORD',  // Password hidden in code
     'active',
     new Date().toISOString()
   ]);
 
   Logger.log('Sample data added successfully!');
+}
+
+/**
+ * Diagnostic function to check system status
+ */
+function diagnosticCheck() {
+  Logger.log('====== DIAGNOSTIC CHECK ======');
+
+  try {
+    // Check Users
+    const usersSheet = getSheet(SHEETS.USERS);
+    const users = sheetToObjects(usersSheet);
+    Logger.log('Users count: ' + users.length);
+    if (users.length > 0) {
+      Logger.log('Sample user: ' + JSON.stringify(users[0]));
+    }
+
+    // Check Orders
+    const ordersSheet = getSheet(SHEETS.ORDERS);
+    const orders = sheetToObjects(ordersSheet);
+    Logger.log('Orders count: ' + orders.length);
+    if (orders.length > 0) {
+      Logger.log('Sample order: ' + JSON.stringify(orders[0]));
+    }
+
+    // Check Servers
+    const serversSheet = getSheet(SHEETS.SERVER_DETAILS);
+    const servers = sheetToObjects(serversSheet);
+    Logger.log('Servers count: ' + servers.length);
+    if (servers.length > 0) {
+      Logger.log('Sample server: ' + JSON.stringify(servers[0]));
+    }
+
+    // Test getOrders for first user
+    if (users.length > 0) {
+      const testEmail = users[0].email;
+      Logger.log('Testing getOrders for: ' + testEmail);
+      const result = getOrders(testEmail);
+      Logger.log('getOrders result: ' + result.getContent());
+    }
+
+    // Test getAllOrders
+    Logger.log('Testing getAllOrders...');
+    const allOrdersResult = getAllOrders();
+    Logger.log('getAllOrders result: ' + allOrdersResult.getContent());
+
+    Logger.log('====== DIAGNOSTIC COMPLETE ======');
+
+  } catch (error) {
+    Logger.log('DIAGNOSTIC ERROR: ' + error.toString());
+    Logger.log('Stack: ' + error.stack);
+  }
 }
