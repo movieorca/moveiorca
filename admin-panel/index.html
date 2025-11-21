@@ -416,10 +416,14 @@
 
             const handleStatusUpdate = async (orderId, newStatus) => {
                 try {
+                    const params = new URLSearchParams();
+                    params.append('orderId', orderId);
+                    params.append('status', newStatus);
+
                     const response = await fetch(`${API_URL}?action=updateOrderStatus`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ orderId, status: newStatus })
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params.toString()
                     });
 
                     const result = await response.json();
@@ -742,10 +746,16 @@
                 }
 
                 try {
+                    const params = new URLSearchParams();
+                    params.append('orderId', formData.orderId);
+                    params.append('serverIp', formData.serverIp);
+                    params.append('username', formData.username);
+                    params.append('password', formData.password);
+
                     const response = await fetch(`${API_URL}?action=addServerDetails`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(formData)
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params.toString()
                     });
 
                     const result = await response.json();
@@ -880,10 +890,14 @@
         const ActionRequestsPage = ({ data, onRefresh, showToast }) => {
             const handleComplete = async (requestId) => {
                 try {
+                    const params = new URLSearchParams();
+                    params.append('requestId', requestId);
+                    params.append('status', 'completed');
+
                     const response = await fetch(`${API_URL}?action=updateActionRequest`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ requestId, status: 'completed' })
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params.toString()
                     });
 
                     const result = await response.json();

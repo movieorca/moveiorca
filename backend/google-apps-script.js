@@ -178,6 +178,7 @@ function doPost(e) {
     // Log the incoming request for debugging
     Logger.log('Received POST request');
     Logger.log('Parameter: ' + JSON.stringify(e.parameter));
+    Logger.log('Content type: ' + (e.postData ? e.postData.type : 'none'));
 
     let data = {};
     let action = '';
@@ -186,13 +187,22 @@ function doPost(e) {
     if (e.parameter && e.parameter.action) {
       action = e.parameter.action;
       Logger.log('Action from parameter: ' + action);
+
+      // For form-urlencoded, all data is in e.parameter
+      // Copy all parameters except 'action' to data object
+      Object.keys(e.parameter).forEach(key => {
+        if (key !== 'action') {
+          data[key] = e.parameter[key];
+        }
+      });
+      Logger.log('Data from parameters: ' + JSON.stringify(data));
     }
 
-    // Parse POST body
-    if (e.postData && e.postData.contents) {
+    // Parse POST body if it's JSON
+    if (e.postData && e.postData.contents && e.postData.type === 'application/json') {
       try {
         data = JSON.parse(e.postData.contents);
-        Logger.log('Parsed data: ' + JSON.stringify(data));
+        Logger.log('Parsed JSON data: ' + JSON.stringify(data));
 
         // If action not in parameter, try to get from body
         if (!action && data.action) {

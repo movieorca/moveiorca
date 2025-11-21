@@ -557,12 +557,19 @@
 
                 try {
                     const action = isSignup ? 'register' : 'login';
+
+                    // Use URLSearchParams to avoid CORS preflight
+                    const params = new URLSearchParams();
+                    Object.keys(formData).forEach(key => {
+                        params.append(key, formData[key]);
+                    });
+
                     const response = await fetch(`${API_URL}?action=${action}`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
+                            'Content-Type': 'application/x-www-form-urlencoded',
                         },
-                        body: JSON.stringify(formData)
+                        body: params.toString()
                     });
 
                     const data = await response.json();
@@ -736,21 +743,22 @@
 
                 try {
                     // Create orders for each item in cart
-                    const orderPromises = cart.map(plan =>
-                        fetch(`${API_URL}?action=createOrder`, {
+                    const orderPromises = cart.map(plan => {
+                        const params = new URLSearchParams();
+                        params.append('userEmail', user.email);
+                        params.append('planName', plan.name);
+                        params.append('price', plan.price);
+                        params.append('paymentScreenshot', screenshot);
+                        params.append('transactionId', transactionId);
+
+                        return fetch(`${API_URL}?action=createOrder`, {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json',
+                                'Content-Type': 'application/x-www-form-urlencoded',
                             },
-                            body: JSON.stringify({
-                                userEmail: user.email,
-                                planName: plan.name,
-                                price: plan.price,
-                                paymentScreenshot: screenshot,
-                                transactionId: transactionId
-                            })
-                        })
-                    );
+                            body: params.toString()
+                        });
+                    });
 
                     const responses = await Promise.all(orderPromises);
                     const results = await Promise.all(responses.map(r => r.json()));
@@ -895,16 +903,17 @@
                 setActionLoading({ ...actionLoading, [orderId]: action });
 
                 try {
+                    const params = new URLSearchParams();
+                    params.append('orderId', orderId);
+                    params.append('userEmail', user.email);
+                    params.append('action', action);
+
                     const response = await fetch(`${API_URL}?action=serverAction`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
+                            'Content-Type': 'application/x-www-form-urlencoded',
                         },
-                        body: JSON.stringify({
-                            orderId: orderId,
-                            userEmail: user.email,
-                            action: action
-                        })
+                        body: params.toString()
                     });
 
                     const data = await response.json();
