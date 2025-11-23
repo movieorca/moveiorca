@@ -31,8 +31,23 @@ const SHEETS = {
   USERS: 'Users',
   ORDERS: 'Orders',
   SERVER_DETAILS: 'ServerDetails',
-  ACTION_REQUESTS: 'ActionRequests'
+  ACTION_REQUESTS: 'ActionRequests',
+  PLANS: 'Plans'
 };
+
+// Available countries for RDP servers
+const COUNTRIES = [
+  'United States',
+  'United Kingdom',
+  'Germany',
+  'France',
+  'Netherlands',
+  'Singapore',
+  'Canada',
+  'Australia',
+  'India',
+  'Japan'
+];
 
 // ==================== HELPER FUNCTIONS ====================
 
@@ -70,13 +85,16 @@ function initializeSheet(sheet, sheetName) {
       headers = ['UserID', 'Name', 'Email', 'Phone', 'Address', 'Password', 'RegistrationDate', 'EmailVerified'];
       break;
     case SHEETS.ORDERS:
-      headers = ['OrderID', 'UserEmail', 'PlanName', 'Price', 'Status', 'PaymentScreenshot', 'TransactionID', 'OrderDate'];
+      headers = ['OrderID', 'UserEmail', 'PlanID', 'PlanName', 'Country', 'Duration', 'Price', 'CostPrice', 'Status', 'PaymentScreenshot', 'TransactionID', 'OrderDate', 'RenewalDate'];
       break;
     case SHEETS.SERVER_DETAILS:
       headers = ['OrderID', 'UserEmail', 'ServerIP', 'Username', 'Password', 'Status', 'LastUpdated'];
       break;
     case SHEETS.ACTION_REQUESTS:
       headers = ['RequestID', 'OrderID', 'UserEmail', 'Action', 'RequestTime', 'Status', 'CompletedTime'];
+      break;
+    case SHEETS.PLANS:
+      headers = ['PlanID', 'Name', 'Country', 'CPU', 'RAM', 'Storage', 'Traffic', 'Price1Day', 'Price1Week', 'Price1Month', 'CostPrice1Month', 'Status', 'CreatedDate'];
       break;
   }
 
@@ -168,6 +186,14 @@ function doGet(e) {
         return getAllServers();
       case 'getAllActionRequests':
         return getAllActionRequests();
+      case 'getAllPlans':
+        return getAllPlans();
+      case 'getPlansByCountry':
+        return getPlansByCountry(e.parameter.country);
+      case 'getCountries':
+        return getCountries();
+      case 'getRevenue':
+        return getRevenue();
       default:
         return jsonResponse({ success: false, message: 'Invalid endpoint' });
     }
@@ -246,6 +272,12 @@ function doPost(e) {
         return addServerDetails(data);
       case 'updateActionRequest':
         return updateActionRequest(data);
+      case 'createPlan':
+        return createPlan(data);
+      case 'updatePlan':
+        return updatePlan(data);
+      case 'deletePlan':
+        return deletePlan(data);
       default:
         Logger.log('Invalid endpoint: ' + action);
         return jsonResponse({ success: false, message: 'Invalid endpoint: ' + action });
@@ -395,18 +427,41 @@ function createOrder(data) {
 
   // Generate order ID
   const orderId = generateId('ORD');
-  const orderDate = new Date().toISOString();
+  const orderDate = new Date();
+  const orderDateISO = orderDate.toISOString();
 
-  // Add order to sheet
+  // Calculate renewal date based on duration
+  const renewalDate = new Date(orderDate);
+  switch(data.duration) {
+    case '1day':
+      renewalDate.setDate(renewalDate.getDate() + 1);
+      break;
+    case '1week':
+      renewalDate.setDate(renewalDate.getDate() + 7);
+      break;
+    case '1month':
+      renewalDate.setMonth(renewalDate.getMonth() + 1);
+      break;
+    default:
+      renewalDate.setMonth(renewalDate.getMonth() + 1); // Default to 1 month
+  }
+  const renewalDateISO = renewalDate.toISOString();
+
+  // Add order to sheet (matching new columns: OrderID, UserEmail, PlanID, PlanName, Country, Duration, Price, CostPrice, Status, PaymentScreenshot, TransactionID, OrderDate, RenewalDate)
   sheet.appendRow([
     orderId,
     data.userEmail,
+    data.planId || '',
     data.planName,
+    data.country || '',
+    data.duration || '1month',
     data.price,
+    data.costPrice || 0,
     'pending',
     data.paymentScreenshot || '',
     data.transactionId || '',
-    orderDate
+    orderDateISO,
+    renewalDateISO
   ]);
 
   // Send notification email
@@ -417,9 +472,12 @@ function createOrder(data) {
      <p><strong>Order ID:</strong> ${orderId}</p>
      <p><strong>Customer:</strong> ${data.userEmail}</p>
      <p><strong>Plan:</strong> ${data.planName}</p>
+     <p><strong>Country:</strong> ${data.country}</p>
+     <p><strong>Duration:</strong> ${data.duration}</p>
      <p><strong>Price:</strong> Rs ${data.price.toLocaleString()}</p>
      <p><strong>Transaction ID:</strong> ${data.transactionId}</p>
-     <p><strong>Order Date:</strong> ${new Date(orderDate).toLocaleString()}</p>
+     <p><strong>Order Date:</strong> ${orderDate.toLocaleString()}</p>
+     <p><strong>Renewal Date:</strong> ${renewalDate.toLocaleString()}</p>
      <p>Please review the payment screenshot and update the order status.</p>`
   );
 
@@ -615,6 +673,162 @@ function updateActionRequest(data) {
   }
 
   return jsonResponse({ success: true, message: 'Action request updated' });
+}
+
+// ==================== PLAN MANAGEMENT ENDPOINTS ====================
+
+/**
+ * Create new plan (Admin only)
+ */
+function createPlan(data) {
+  const sheet = getSheet(SHEETS.PLANS);
+
+  // Generate plan ID
+  const planId = generateId('PLAN');
+  const createdDate = new Date().toISOString();
+
+  // Add plan to sheet
+  sheet.appendRow([
+    planId,
+    data.name,
+    data.country,
+    data.cpu,
+    data.ram,
+    data.storage,
+    data.traffic,
+    data.price1Day || 0,
+    data.price1Week || 0,
+    data.price1Month || 0,
+    data.costPrice1Month || 0,
+    'active',
+    createdDate
+  ]);
+
+  return jsonResponse({
+    success: true,
+    planId: planId,
+    message: 'Plan created successfully'
+  });
+}
+
+/**
+ * Update existing plan (Admin only)
+ */
+function updatePlan(data) {
+  const sheet = getSheet(SHEETS.PLANS);
+  const rowNumber = findRowByValue(sheet, 1, data.planId); // PlanID is column 1
+
+  if (rowNumber < 0) {
+    return jsonResponse({ success: false, message: 'Plan not found' });
+  }
+
+  // Update plan details
+  sheet.getRange(rowNumber, 2).setValue(data.name);
+  sheet.getRange(rowNumber, 3).setValue(data.country);
+  sheet.getRange(rowNumber, 4).setValue(data.cpu);
+  sheet.getRange(rowNumber, 5).setValue(data.ram);
+  sheet.getRange(rowNumber, 6).setValue(data.storage);
+  sheet.getRange(rowNumber, 7).setValue(data.traffic);
+  sheet.getRange(rowNumber, 8).setValue(data.price1Day || 0);
+  sheet.getRange(rowNumber, 9).setValue(data.price1Week || 0);
+  sheet.getRange(rowNumber, 10).setValue(data.price1Month || 0);
+  sheet.getRange(rowNumber, 11).setValue(data.costPrice1Month || 0);
+  sheet.getRange(rowNumber, 12).setValue(data.status || 'active');
+
+  return jsonResponse({ success: true, message: 'Plan updated successfully' });
+}
+
+/**
+ * Delete/Deactivate plan (Admin only)
+ */
+function deletePlan(data) {
+  const sheet = getSheet(SHEETS.PLANS);
+  const rowNumber = findRowByValue(sheet, 1, data.planId);
+
+  if (rowNumber < 0) {
+    return jsonResponse({ success: false, message: 'Plan not found' });
+  }
+
+  // Soft delete - set status to inactive instead of actually deleting
+  sheet.getRange(rowNumber, 12).setValue('inactive');
+
+  return jsonResponse({ success: true, message: 'Plan deactivated successfully' });
+}
+
+/**
+ * Get all plans
+ */
+function getAllPlans() {
+  const sheet = getSheet(SHEETS.PLANS);
+  const plans = sheetToObjects(sheet);
+
+  // Only return active plans to customers, all plans to admins
+  return jsonResponse({ success: true, plans: plans });
+}
+
+/**
+ * Get plans by country
+ */
+function getPlansByCountry(country) {
+  const sheet = getSheet(SHEETS.PLANS);
+  const plans = sheetToObjects(sheet);
+
+  // Filter active plans by country
+  const countryPlans = plans.filter(plan =>
+    plan.country === country && plan.status === 'active'
+  );
+
+  return jsonResponse({ success: true, plans: countryPlans });
+}
+
+/**
+ * Get available countries
+ */
+function getCountries() {
+  return jsonResponse({ success: true, countries: COUNTRIES });
+}
+
+/**
+ * Get revenue and profit statistics (Admin only)
+ */
+function getRevenue() {
+  const ordersSheet = getSheet(SHEETS.ORDERS);
+  const orders = sheetToObjects(ordersSheet);
+
+  let totalRevenue = 0;
+  let totalCost = 0;
+  let activeOrders = 0;
+  let pendingOrders = 0;
+
+  orders.forEach(order => {
+    const price = parseFloat(order.price) || 0;
+    const cost = parseFloat(order.costPrice) || 0;
+
+    if (order.status === 'active' || order.status === 'completed') {
+      totalRevenue += price;
+      totalCost += cost;
+    }
+
+    if (order.status === 'active') {
+      activeOrders++;
+    } else if (order.status === 'pending') {
+      pendingOrders++;
+    }
+  });
+
+  const totalProfit = totalRevenue - totalCost;
+
+  return jsonResponse({
+    success: true,
+    stats: {
+      totalRevenue: totalRevenue,
+      totalCost: totalCost,
+      totalProfit: totalProfit,
+      activeOrders: activeOrders,
+      pendingOrders: pendingOrders,
+      totalOrders: orders.length
+    }
+  });
 }
 
 // ==================== TEST FUNCTION ====================
