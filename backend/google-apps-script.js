@@ -687,11 +687,21 @@ function createPlan(data) {
   const planId = generateId('PLAN');
   const createdDate = new Date().toISOString();
 
+  // Handle countries - can be array or string
+  let countries = '';
+  if (Array.isArray(data.countries)) {
+    countries = data.countries.join(',');
+  } else if (data.country) {
+    countries = data.country;
+  } else if (data.countries) {
+    countries = data.countries;
+  }
+
   // Add plan to sheet
   sheet.appendRow([
     planId,
     data.name,
-    data.country,
+    countries, // Store as comma-separated string
     data.cpu,
     data.ram,
     data.storage,
@@ -722,9 +732,19 @@ function updatePlan(data) {
     return jsonResponse({ success: false, message: 'Plan not found' });
   }
 
+  // Handle countries - can be array or string
+  let countries = '';
+  if (Array.isArray(data.countries)) {
+    countries = data.countries.join(',');
+  } else if (data.country) {
+    countries = data.country;
+  } else if (data.countries) {
+    countries = data.countries;
+  }
+
   // Update plan details
   sheet.getRange(rowNumber, 2).setValue(data.name);
-  sheet.getRange(rowNumber, 3).setValue(data.country);
+  sheet.getRange(rowNumber, 3).setValue(countries);
   sheet.getRange(rowNumber, 4).setValue(data.cpu);
   sheet.getRange(rowNumber, 5).setValue(data.ram);
   sheet.getRange(rowNumber, 6).setValue(data.storage);
@@ -762,8 +782,15 @@ function getAllPlans() {
   const sheet = getSheet(SHEETS.PLANS);
   const plans = sheetToObjects(sheet);
 
-  // Only return active plans to customers, all plans to admins
-  return jsonResponse({ success: true, plans: plans });
+  // Convert country string to array for each plan
+  const plansWithCountryArray = plans.map(plan => {
+    return {
+      ...plan,
+      countries: plan.country ? plan.country.split(',') : []
+    };
+  });
+
+  return jsonResponse({ success: true, plans: plansWithCountryArray });
 }
 
 /**
@@ -773,12 +800,23 @@ function getPlansByCountry(country) {
   const sheet = getSheet(SHEETS.PLANS);
   const plans = sheetToObjects(sheet);
 
-  // Filter active plans by country
-  const countryPlans = plans.filter(plan =>
-    plan.country === country && plan.status === 'active'
-  );
+  // Filter active plans where selected country is in the plan's country list
+  const countryPlans = plans.filter(plan => {
+    if (plan.status !== 'active') return false;
 
-  return jsonResponse({ success: true, plans: countryPlans });
+    const planCountries = plan.country ? plan.country.split(',') : [];
+    return planCountries.includes(country);
+  });
+
+  // Convert country string to array for each plan
+  const plansWithCountryArray = countryPlans.map(plan => {
+    return {
+      ...plan,
+      countries: plan.country ? plan.country.split(',') : []
+    };
+  });
+
+  return jsonResponse({ success: true, plans: plansWithCountryArray });
 }
 
 /**
