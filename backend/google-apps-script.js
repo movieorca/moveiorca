@@ -1,0 +1,990 @@
+/**
+ * RDP.SALE - Google Apps Script Backend
+ *
+ * This script handles all API requests for the RDP sales system
+ * It manages data in Google Sheets and sends email notifications
+ *
+ * SETUP INSTRUCTIONS:
+ * 1. Create a new Google Sheet with 4 tabs: Users, Orders, ServerDetails, ActionRequests
+ * 2. Copy this script to Google Apps Script (Extensions > Apps Script)
+ * 3. Update SPREADSHEET_ID with your Google Sheet ID
+ * 4. Update ADMIN_EMAIL with your admin email address
+ * 5. Deploy as Web App (Deploy > New deployment > Web app)
+ * 6. Set access to "Anyone" and execute as "Me"
+ * 7. Copy the deployment URL and update both panels
+ */
+
+// ==================== CONFIGURATION ====================
+
+const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // Replace with your Google Sheet ID
+const ADMIN_EMAIL = 'admin@rdp.sale'; // Replace with your admin email
+
+// ADMIN CREDENTIALS - Store securely
+// IMPORTANT: After first setup, store these in Script Properties for better security
+const ADMIN_CREDENTIALS = {
+  email: 'admin@rdp.sale',
+  password: 'Admin@RDP2025'  // TODO: Change this to your secure password!
+};
+
+// Sheet names
+const SHEETS = {
+  USERS: 'Users',
+  ORDERS: 'Orders',
+  SERVER_DETAILS: 'ServerDetails',
+  ACTION_REQUESTS: 'ActionRequests',
+  PLANS: 'Plans'
+};
+
+// Available countries for RDP servers
+const COUNTRIES = [
+  'United States',
+  'United Kingdom',
+  'Germany',
+  'France',
+  'Netherlands',
+  'Singapore',
+  'Canada',
+  'Australia',
+  'India',
+  'Japan'
+];
+
+// ==================== HELPER FUNCTIONS ====================
+
+/**
+ * Get spreadsheet object
+ */
+function getSpreadsheet() {
+  return SpreadsheetApp.openById(SPREADSHEET_ID);
+}
+
+/**
+ * Get specific sheet by name
+ */
+function getSheet(sheetName) {
+  const ss = getSpreadsheet();
+  let sheet = ss.getSheetByName(sheetName);
+
+  // Create sheet if it doesn't exist
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    initializeSheet(sheet, sheetName);
+  }
+
+  return sheet;
+}
+
+/**
+ * Initialize sheet with headers
+ */
+function initializeSheet(sheet, sheetName) {
+  let headers = [];
+
+  switch(sheetName) {
+    case SHEETS.USERS:
+      headers = ['UserID', 'Name', 'Email', 'Phone', 'Address', 'Password', 'RegistrationDate', 'EmailVerified'];
+      break;
+    case SHEETS.ORDERS:
+      headers = ['OrderID', 'UserEmail', 'PlanID', 'PlanName', 'Country', 'Duration', 'Price', 'CostPrice', 'Status', 'PaymentScreenshot', 'TransactionID', 'OrderDate', 'RenewalDate'];
+      break;
+    case SHEETS.SERVER_DETAILS:
+      headers = ['OrderID', 'UserEmail', 'ServerIP', 'Username', 'Password', 'Status', 'LastUpdated'];
+      break;
+    case SHEETS.ACTION_REQUESTS:
+      headers = ['RequestID', 'OrderID', 'UserEmail', 'Action', 'RequestTime', 'Status', 'CompletedTime'];
+      break;
+    case SHEETS.PLANS:
+      headers = ['PlanID', 'Name', 'Country', 'CPU', 'RAM', 'Storage', 'Traffic', 'Price1Day', 'Price1Week', 'Price1Month', 'CostPrice1Month', 'Status', 'CreatedDate'];
+      break;
+  }
+
+  if (headers.length > 0) {
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#f3f4f6');
+  }
+}
+
+/**
+ * Generate unique ID
+ */
+function generateId(prefix) {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 10000);
+  return `${prefix}-${timestamp}-${random}`;
+}
+
+/**
+ * Find row by column value
+ */
+function findRowByValue(sheet, columnIndex, value) {
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][columnIndex - 1] === value) {
+      return i + 1; // Return 1-based row number
+    }
+  }
+  return -1;
+}
+
+/**
+ * Send email notification
+ */
+function sendEmail(to, subject, body) {
+  try {
+    MailApp.sendEmail({
+      to: to,
+      subject: subject,
+      htmlBody: body
+    });
+    return true;
+  } catch (error) {
+    Logger.log('Email error: ' + error);
+    return false;
+  }
+}
+
+/**
+ * Convert sheet data to array of objects
+ */
+function sheetToObjects(sheet) {
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  const headers = data[0];
+  const objects = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const obj = {};
+    for (let j = 0; j < headers.length; j++) {
+      // Convert header to camelCase
+      const key = headers[j].charAt(0).toLowerCase() + headers[j].slice(1);
+      obj[key] = data[i][j];
+    }
+    objects.push(obj);
+  }
+
+  return objects;
+}
+
+// ==================== API ENDPOINTS ====================
+
+/**
+ * Handle HTTP GET requests
+ */
+function doGet(e) {
+  const path = e.parameter.action || '';
+
+  try {
+    switch(path) {
+      case 'getOrders':
+        return getOrders(e.parameter.email);
+      case 'getAllUsers':
+        return getAllUsers();
+      case 'getAllOrders':
+        return getAllOrders();
+      case 'getAllServers':
+        return getAllServers();
+      case 'getAllActionRequests':
+        return getAllActionRequests();
+      case 'getAllPlans':
+        return getAllPlans();
+      case 'getPlansByCountry':
+        return getPlansByCountry(e.parameter.country);
+      case 'getCountries':
+        return getCountries();
+      case 'getRevenue':
+        return getRevenue();
+      default:
+        return jsonResponse({ success: false, message: 'Invalid endpoint' });
+    }
+  } catch (error) {
+    Logger.log('doGet error: ' + error);
+    return jsonResponse({ success: false, message: error.toString() });
+  }
+}
+
+/**
+ * Handle HTTP POST requests
+ */
+function doPost(e) {
+  try {
+    // Log the incoming request for debugging
+    Logger.log('Received POST request');
+    Logger.log('Parameter: ' + JSON.stringify(e.parameter));
+    Logger.log('Content type: ' + (e.postData ? e.postData.type : 'none'));
+
+    let data = {};
+    let action = '';
+
+    // Get action from URL parameter
+    if (e.parameter && e.parameter.action) {
+      action = e.parameter.action;
+      Logger.log('Action from parameter: ' + action);
+
+      // For form-urlencoded, all data is in e.parameter
+      // Copy all parameters except 'action' to data object
+      Object.keys(e.parameter).forEach(key => {
+        if (key !== 'action') {
+          data[key] = e.parameter[key];
+        }
+      });
+      Logger.log('Data from parameters: ' + JSON.stringify(data));
+    }
+    // Only try JSON parsing if we didn't already get data from parameters
+    else if (e.postData && e.postData.contents) {
+      try {
+        data = JSON.parse(e.postData.contents);
+        Logger.log('Parsed JSON data: ' + JSON.stringify(data));
+
+        // If action not in parameter, try to get from body
+        if (!action && data.action) {
+          action = data.action;
+          Logger.log('Action from body: ' + action);
+        }
+      } catch (parseError) {
+        Logger.log('JSON parse error: ' + parseError);
+        return jsonResponse({ success: false, message: 'Invalid JSON data' });
+      }
+    }
+
+    if (!action) {
+      Logger.log('No action specified');
+      return jsonResponse({ success: false, message: 'No action specified' });
+    }
+
+    Logger.log('Processing action: ' + action);
+
+    // Route to appropriate handler
+    switch(action) {
+      case 'register':
+        return registerUser(data);
+      case 'login':
+        return loginUser(data);
+      case 'adminLogin':
+        return adminLogin(data);
+      case 'createOrder':
+        return createOrder(data);
+      case 'serverAction':
+        return createServerAction(data);
+      case 'updateOrderStatus':
+        return updateOrderStatus(data);
+      case 'addServerDetails':
+        return addServerDetails(data);
+      case 'updateActionRequest':
+        return updateActionRequest(data);
+      case 'createPlan':
+        return createPlan(data);
+      case 'updatePlan':
+        return updatePlan(data);
+      case 'deletePlan':
+        return deletePlan(data);
+      default:
+        Logger.log('Invalid endpoint: ' + action);
+        return jsonResponse({ success: false, message: 'Invalid endpoint: ' + action });
+    }
+  } catch (error) {
+    Logger.log('doPost error: ' + error.toString());
+    Logger.log('Error stack: ' + error.stack);
+    return jsonResponse({ success: false, message: 'Server error: ' + error.toString() });
+  }
+}
+
+/**
+ * Create JSON response
+ * Note: Google Apps Script automatically handles CORS for web apps deployed as "Anyone"
+ */
+function jsonResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ==================== USER ENDPOINTS ====================
+
+/**
+ * Register new user
+ */
+function registerUser(data) {
+  const sheet = getSheet(SHEETS.USERS);
+
+  // Check if email already exists
+  const existingRow = findRowByValue(sheet, 3, data.email); // Email is column 3
+  if (existingRow > 0) {
+    return jsonResponse({ success: false, message: 'Email already registered' });
+  }
+
+  // Generate user ID
+  const userId = generateId('USER');
+  const registrationDate = new Date().toISOString();
+
+  // Add user to sheet
+  sheet.appendRow([
+    userId,
+    data.name,
+    data.email,
+    data.phone,
+    data.address,
+    data.password, // In production, this should be hashed
+    registrationDate,
+    'false'
+  ]);
+
+  // Send notification email
+  sendEmail(
+    ADMIN_EMAIL,
+    'New User Registration - RDP.SALE',
+    `<h2>New User Registered</h2>
+     <p><strong>Name:</strong> ${data.name}</p>
+     <p><strong>Email:</strong> ${data.email}</p>
+     <p><strong>Phone:</strong> ${data.phone}</p>
+     <p><strong>Registration Date:</strong> ${new Date(registrationDate).toLocaleString()}</p>`
+  );
+
+  return jsonResponse({
+    success: true,
+    user: {
+      userId: userId,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      address: data.address
+    }
+  });
+}
+
+/**
+ * Login user
+ */
+function loginUser(data) {
+  const sheet = getSheet(SHEETS.USERS);
+  const users = sheetToObjects(sheet);
+
+  // Find user with matching email and password
+  const user = users.find(u => u.email === data.email && u.password === data.password);
+
+  if (user) {
+    return jsonResponse({
+      success: true,
+      user: {
+        userId: user.userID,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        address: user.address
+      }
+    });
+  } else {
+    return jsonResponse({ success: false, message: 'Invalid email or password' });
+  }
+}
+
+/**
+ * Admin login - Separate from regular user login
+ */
+function adminLogin(data) {
+  Logger.log('Admin login attempt for: ' + data.email);
+
+  // Check credentials against ADMIN_CREDENTIALS constant
+  if (data.email === ADMIN_CREDENTIALS.email && data.password === ADMIN_CREDENTIALS.password) {
+    Logger.log('Admin login successful');
+    return jsonResponse({
+      success: true,
+      isAdmin: true,
+      admin: {
+        email: ADMIN_CREDENTIALS.email,
+        name: 'Admin'
+      }
+    });
+  } else {
+    Logger.log('Admin login failed - invalid credentials');
+    return jsonResponse({ success: false, message: 'Invalid admin credentials' });
+  }
+}
+
+/**
+ * Get all users (Admin only)
+ */
+function getAllUsers() {
+  const sheet = getSheet(SHEETS.USERS);
+  const users = sheetToObjects(sheet);
+
+  // Remove password from response
+  const safeUsers = users.map(user => {
+    const { password, ...safeUser } = user;
+    return safeUser;
+  });
+
+  return jsonResponse({ success: true, users: safeUsers });
+}
+
+// ==================== ORDER ENDPOINTS ====================
+
+/**
+ * Create new order
+ */
+function createOrder(data) {
+  const sheet = getSheet(SHEETS.ORDERS);
+
+  // Generate order ID
+  const orderId = generateId('ORD');
+  const orderDate = new Date();
+  const orderDateISO = orderDate.toISOString();
+
+  // Calculate renewal date based on duration
+  const renewalDate = new Date(orderDate);
+  switch(data.duration) {
+    case '1day':
+      renewalDate.setDate(renewalDate.getDate() + 1);
+      break;
+    case '1week':
+      renewalDate.setDate(renewalDate.getDate() + 7);
+      break;
+    case '1month':
+      renewalDate.setMonth(renewalDate.getMonth() + 1);
+      break;
+    default:
+      renewalDate.setMonth(renewalDate.getMonth() + 1); // Default to 1 month
+  }
+  const renewalDateISO = renewalDate.toISOString();
+
+  // Add order to sheet (matching new columns: OrderID, UserEmail, PlanID, PlanName, Country, Duration, Price, CostPrice, Status, PaymentScreenshot, TransactionID, OrderDate, RenewalDate)
+  sheet.appendRow([
+    orderId,
+    data.userEmail,
+    data.planId || '',
+    data.planName,
+    data.country || '',
+    data.duration || '1month',
+    data.price,
+    data.costPrice || 0,
+    'pending',
+    data.paymentScreenshot || '',
+    data.transactionId || '',
+    orderDateISO,
+    renewalDateISO
+  ]);
+
+  // Send notification email
+  sendEmail(
+    ADMIN_EMAIL,
+    'New Order Received - RDP.SALE',
+    `<h2>New Order</h2>
+     <p><strong>Order ID:</strong> ${orderId}</p>
+     <p><strong>Customer:</strong> ${data.userEmail}</p>
+     <p><strong>Plan:</strong> ${data.planName}</p>
+     <p><strong>Country:</strong> ${data.country}</p>
+     <p><strong>Duration:</strong> ${data.duration}</p>
+     <p><strong>Price:</strong> Rs ${data.price.toLocaleString()}</p>
+     <p><strong>Transaction ID:</strong> ${data.transactionId}</p>
+     <p><strong>Order Date:</strong> ${orderDate.toLocaleString()}</p>
+     <p><strong>Renewal Date:</strong> ${renewalDate.toLocaleString()}</p>
+     <p>Please review the payment screenshot and update the order status.</p>`
+  );
+
+  return jsonResponse({
+    success: true,
+    orderId: orderId,
+    message: 'Order created successfully'
+  });
+}
+
+/**
+ * Get orders for a specific user
+ */
+function getOrders(email) {
+  const ordersSheet = getSheet(SHEETS.ORDERS);
+  const serversSheet = getSheet(SHEETS.SERVER_DETAILS);
+
+  const orders = sheetToObjects(ordersSheet);
+  const servers = sheetToObjects(serversSheet);
+
+  // Filter orders by email
+  const userOrders = orders.filter(order => order.userEmail === email);
+
+  // Add server details to orders
+  const ordersWithServers = userOrders.map(order => {
+    const server = servers.find(s => s.orderID === order.orderID);
+    if (server) {
+      return {
+        ...order,
+        serverIp: server.serverIP,
+        serverUsername: server.username,
+        serverPassword: server.password,
+        serverStatus: server.status
+      };
+    }
+    return order;
+  });
+
+  return jsonResponse({ success: true, orders: ordersWithServers });
+}
+
+/**
+ * Get all orders (Admin only)
+ */
+function getAllOrders() {
+  const sheet = getSheet(SHEETS.ORDERS);
+  const orders = sheetToObjects(sheet);
+
+  return jsonResponse({ success: true, orders: orders });
+}
+
+/**
+ * Update order status (Admin only)
+ */
+function updateOrderStatus(data) {
+  const sheet = getSheet(SHEETS.ORDERS);
+  const rowNumber = findRowByValue(sheet, 1, data.orderId); // OrderID is column 1
+
+  if (rowNumber < 0) {
+    return jsonResponse({ success: false, message: 'Order not found' });
+  }
+
+  // Update status (column 5)
+  sheet.getRange(rowNumber, 5).setValue(data.status);
+
+  return jsonResponse({ success: true, message: 'Order status updated' });
+}
+
+// ==================== SERVER ENDPOINTS ====================
+
+/**
+ * Add server details (Admin only)
+ */
+function addServerDetails(data) {
+  const ordersSheet = getSheet(SHEETS.ORDERS);
+  const serversSheet = getSheet(SHEETS.SERVER_DETAILS);
+
+  // Verify order exists
+  const orderRow = findRowByValue(ordersSheet, 1, data.orderId);
+  if (orderRow < 0) {
+    return jsonResponse({ success: false, message: 'Order not found' });
+  }
+
+  // Get user email from order
+  const userEmail = ordersSheet.getRange(orderRow, 2).getValue();
+
+  // Check if server details already exist
+  const existingServer = findRowByValue(serversSheet, 1, data.orderId);
+
+  const lastUpdated = new Date().toISOString();
+
+  if (existingServer > 0) {
+    // Update existing server details
+    serversSheet.getRange(existingServer, 3).setValue(data.serverIp);
+    serversSheet.getRange(existingServer, 4).setValue(data.username);
+    serversSheet.getRange(existingServer, 5).setValue(data.password);
+    serversSheet.getRange(existingServer, 7).setValue(lastUpdated);
+  } else {
+    // Add new server details
+    serversSheet.appendRow([
+      data.orderId,
+      userEmail,
+      data.serverIp,
+      data.username,
+      data.password,
+      'active',
+      lastUpdated
+    ]);
+  }
+
+  return jsonResponse({ success: true, message: 'Server details added successfully' });
+}
+
+/**
+ * Get all servers (Admin only)
+ */
+function getAllServers() {
+  const sheet = getSheet(SHEETS.SERVER_DETAILS);
+  const servers = sheetToObjects(sheet);
+
+  return jsonResponse({ success: true, servers: servers });
+}
+
+// ==================== ACTION REQUEST ENDPOINTS ====================
+
+/**
+ * Create server action request
+ */
+function createServerAction(data) {
+  const sheet = getSheet(SHEETS.ACTION_REQUESTS);
+
+  // Generate request ID
+  const requestId = generateId('REQ');
+  const requestTime = new Date().toISOString();
+
+  // Add action request to sheet
+  sheet.appendRow([
+    requestId,
+    data.orderId,
+    data.userEmail,
+    data.action,
+    requestTime,
+    'pending',
+    ''
+  ]);
+
+  // Send notification email
+  sendEmail(
+    ADMIN_EMAIL,
+    `Server Action Request: ${data.action} - RDP.SALE`,
+    `<h2>Server Action Request</h2>
+     <p><strong>Request ID:</strong> ${requestId}</p>
+     <p><strong>Order ID:</strong> ${data.orderId}</p>
+     <p><strong>Customer:</strong> ${data.userEmail}</p>
+     <p><strong>Action:</strong> ${data.action}</p>
+     <p><strong>Time:</strong> ${new Date(requestTime).toLocaleString()}</p>
+     <p>Please process this request as soon as possible.</p>`
+  );
+
+  return jsonResponse({
+    success: true,
+    requestId: requestId,
+    message: 'Action request submitted successfully'
+  });
+}
+
+/**
+ * Get all action requests (Admin only)
+ */
+function getAllActionRequests() {
+  const sheet = getSheet(SHEETS.ACTION_REQUESTS);
+  const actions = sheetToObjects(sheet);
+
+  return jsonResponse({ success: true, actions: actions });
+}
+
+/**
+ * Update action request status (Admin only)
+ */
+function updateActionRequest(data) {
+  const sheet = getSheet(SHEETS.ACTION_REQUESTS);
+  const rowNumber = findRowByValue(sheet, 1, data.requestId); // RequestID is column 1
+
+  if (rowNumber < 0) {
+    return jsonResponse({ success: false, message: 'Action request not found' });
+  }
+
+  // Update status (column 6) and completed time (column 7)
+  sheet.getRange(rowNumber, 6).setValue(data.status);
+
+  if (data.status === 'completed') {
+    sheet.getRange(rowNumber, 7).setValue(new Date().toISOString());
+  }
+
+  return jsonResponse({ success: true, message: 'Action request updated' });
+}
+
+// ==================== PLAN MANAGEMENT ENDPOINTS ====================
+
+/**
+ * Create new plan (Admin only)
+ */
+function createPlan(data) {
+  const sheet = getSheet(SHEETS.PLANS);
+
+  // Generate plan ID
+  const planId = generateId('PLAN');
+  const createdDate = new Date().toISOString();
+
+  // Handle countries - can be array or string
+  let countries = '';
+  if (Array.isArray(data.countries)) {
+    countries = data.countries.join(',');
+  } else if (data.country) {
+    countries = data.country;
+  } else if (data.countries) {
+    countries = data.countries;
+  }
+
+  // Add plan to sheet
+  sheet.appendRow([
+    planId,
+    data.name,
+    countries, // Store as comma-separated string
+    data.cpu,
+    data.ram,
+    data.storage,
+    data.traffic,
+    data.price1Day || 0,
+    data.price1Week || 0,
+    data.price1Month || 0,
+    data.costPrice1Month || 0,
+    'active',
+    createdDate
+  ]);
+
+  return jsonResponse({
+    success: true,
+    planId: planId,
+    message: 'Plan created successfully'
+  });
+}
+
+/**
+ * Update existing plan (Admin only)
+ */
+function updatePlan(data) {
+  const sheet = getSheet(SHEETS.PLANS);
+  const rowNumber = findRowByValue(sheet, 1, data.planId); // PlanID is column 1
+
+  if (rowNumber < 0) {
+    return jsonResponse({ success: false, message: 'Plan not found' });
+  }
+
+  // Handle countries - can be array or string
+  let countries = '';
+  if (Array.isArray(data.countries)) {
+    countries = data.countries.join(',');
+  } else if (data.country) {
+    countries = data.country;
+  } else if (data.countries) {
+    countries = data.countries;
+  }
+
+  // Update plan details
+  sheet.getRange(rowNumber, 2).setValue(data.name);
+  sheet.getRange(rowNumber, 3).setValue(countries);
+  sheet.getRange(rowNumber, 4).setValue(data.cpu);
+  sheet.getRange(rowNumber, 5).setValue(data.ram);
+  sheet.getRange(rowNumber, 6).setValue(data.storage);
+  sheet.getRange(rowNumber, 7).setValue(data.traffic);
+  sheet.getRange(rowNumber, 8).setValue(data.price1Day || 0);
+  sheet.getRange(rowNumber, 9).setValue(data.price1Week || 0);
+  sheet.getRange(rowNumber, 10).setValue(data.price1Month || 0);
+  sheet.getRange(rowNumber, 11).setValue(data.costPrice1Month || 0);
+  sheet.getRange(rowNumber, 12).setValue(data.status || 'active');
+
+  return jsonResponse({ success: true, message: 'Plan updated successfully' });
+}
+
+/**
+ * Delete/Deactivate plan (Admin only)
+ */
+function deletePlan(data) {
+  const sheet = getSheet(SHEETS.PLANS);
+  const rowNumber = findRowByValue(sheet, 1, data.planId);
+
+  if (rowNumber < 0) {
+    return jsonResponse({ success: false, message: 'Plan not found' });
+  }
+
+  // Soft delete - set status to inactive instead of actually deleting
+  sheet.getRange(rowNumber, 12).setValue('inactive');
+
+  return jsonResponse({ success: true, message: 'Plan deactivated successfully' });
+}
+
+/**
+ * Get all plans
+ */
+function getAllPlans() {
+  const sheet = getSheet(SHEETS.PLANS);
+  const plans = sheetToObjects(sheet);
+
+  // Convert country string to array for each plan
+  const plansWithCountryArray = plans.map(plan => {
+    return {
+      ...plan,
+      countries: plan.country ? plan.country.split(',') : []
+    };
+  });
+
+  return jsonResponse({ success: true, plans: plansWithCountryArray });
+}
+
+/**
+ * Get plans by country
+ */
+function getPlansByCountry(country) {
+  const sheet = getSheet(SHEETS.PLANS);
+  const plans = sheetToObjects(sheet);
+
+  // Filter active plans where selected country is in the plan's country list
+  const countryPlans = plans.filter(plan => {
+    if (plan.status !== 'active') return false;
+
+    const planCountries = plan.country ? plan.country.split(',') : [];
+    return planCountries.includes(country);
+  });
+
+  // Convert country string to array for each plan
+  const plansWithCountryArray = countryPlans.map(plan => {
+    return {
+      ...plan,
+      countries: plan.country ? plan.country.split(',') : []
+    };
+  });
+
+  return jsonResponse({ success: true, plans: plansWithCountryArray });
+}
+
+/**
+ * Get available countries
+ */
+function getCountries() {
+  return jsonResponse({ success: true, countries: COUNTRIES });
+}
+
+/**
+ * Get revenue and profit statistics (Admin only)
+ */
+function getRevenue() {
+  const ordersSheet = getSheet(SHEETS.ORDERS);
+  const orders = sheetToObjects(ordersSheet);
+
+  let totalRevenue = 0;
+  let totalCost = 0;
+  let activeOrders = 0;
+  let pendingOrders = 0;
+
+  orders.forEach(order => {
+    const price = parseFloat(order.price) || 0;
+    const cost = parseFloat(order.costPrice) || 0;
+
+    if (order.status === 'active' || order.status === 'completed') {
+      totalRevenue += price;
+      totalCost += cost;
+    }
+
+    if (order.status === 'active') {
+      activeOrders++;
+    } else if (order.status === 'pending') {
+      pendingOrders++;
+    }
+  });
+
+  const totalProfit = totalRevenue - totalCost;
+
+  return jsonResponse({
+    success: true,
+    stats: {
+      totalRevenue: totalRevenue,
+      totalCost: totalCost,
+      totalProfit: totalProfit,
+      activeOrders: activeOrders,
+      pendingOrders: pendingOrders,
+      totalOrders: orders.length
+    }
+  });
+}
+
+// ==================== TEST FUNCTION ====================
+
+/**
+ * Test function to initialize all sheets
+ * Run this once to set up the sheets
+ */
+function initializeAllSheets() {
+  const ss = getSpreadsheet();
+
+  // Create or get all sheets
+  Object.values(SHEETS).forEach(sheetName => {
+    let sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+    }
+    // Clear and reinitialize
+    sheet.clear();
+    initializeSheet(sheet, sheetName);
+  });
+
+  Logger.log('All sheets initialized successfully!');
+}
+
+/**
+ * Test function to add sample data
+ */
+function addSampleData() {
+  // Add sample user
+  const usersSheet = getSheet(SHEETS.USERS);
+  usersSheet.appendRow([
+    'USER-TEST-001',
+    'John Doe',
+    'john@example.com',
+    '03001234567',
+    '123 Test Street, Karachi',
+    'password123',
+    new Date().toISOString(),
+    'true'
+  ]);
+
+  // Add sample order
+  const ordersSheet = getSheet(SHEETS.ORDERS);
+  ordersSheet.appendRow([
+    'ORD-TEST-001',
+    'john@example.com',
+    'Basic',
+    2799,
+    'pending',
+    'base64_image_data_here',
+    'TXN123456789',
+    new Date().toISOString()
+  ]);
+
+  // Add sample server (without real password for security)
+  const serversSheet = getSheet(SHEETS.SERVER_DETAILS);
+  serversSheet.appendRow([
+    'ORD-TEST-001',
+    'john@example.com',
+    '192.168.1.100',
+    'admin',
+    'HIDDEN_PASSWORD',  // Password hidden in code
+    'active',
+    new Date().toISOString()
+  ]);
+
+  Logger.log('Sample data added successfully!');
+}
+
+/**
+ * Diagnostic function to check system status
+ */
+function diagnosticCheck() {
+  Logger.log('====== DIAGNOSTIC CHECK ======');
+
+  try {
+    // Check Users
+    const usersSheet = getSheet(SHEETS.USERS);
+    const users = sheetToObjects(usersSheet);
+    Logger.log('Users count: ' + users.length);
+    if (users.length > 0) {
+      Logger.log('Sample user: ' + JSON.stringify(users[0]));
+    }
+
+    // Check Orders
+    const ordersSheet = getSheet(SHEETS.ORDERS);
+    const orders = sheetToObjects(ordersSheet);
+    Logger.log('Orders count: ' + orders.length);
+    if (orders.length > 0) {
+      Logger.log('Sample order: ' + JSON.stringify(orders[0]));
+    }
+
+    // Check Servers
+    const serversSheet = getSheet(SHEETS.SERVER_DETAILS);
+    const servers = sheetToObjects(serversSheet);
+    Logger.log('Servers count: ' + servers.length);
+    if (servers.length > 0) {
+      Logger.log('Sample server: ' + JSON.stringify(servers[0]));
+    }
+
+    // Test getOrders for first user
+    if (users.length > 0) {
+      const testEmail = users[0].email;
+      Logger.log('Testing getOrders for: ' + testEmail);
+      const result = getOrders(testEmail);
+      Logger.log('getOrders result: ' + result.getContent());
+    }
+
+    // Test getAllOrders
+    Logger.log('Testing getAllOrders...');
+    const allOrdersResult = getAllOrders();
+    Logger.log('getAllOrders result: ' + allOrdersResult.getContent());
+
+    Logger.log('====== DIAGNOSTIC COMPLETE ======');
+
+  } catch (error) {
+    Logger.log('DIAGNOSTIC ERROR: ' + error.toString());
+    Logger.log('Stack: ' + error.stack);
+  }
+}
