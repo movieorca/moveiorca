@@ -1,0 +1,123 @@
+<div class="mini-browser-container">
+  <!-- Header (Only show if controls are enabled) -->
+  <div class="browser-header" *ngIf="shouldShowControls()">
+    <h1>🌐 Remote Mini Browser</h1>
+    <div class="status-bar">
+      <span class="status-badge" [class.connected]="isConnected" [class.disconnected]="!isConnected">
+        {{ isConnected ? '● Connected' : '○ Disconnected' }}
+      </span>
+      <span *ngIf="isLoading" class="loading-indicator">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Navigation Controls (Only show if controls are enabled) -->
+  <div class="browser-controls" *ngIf="shouldShowControls()">
+    <div class="control-buttons">
+      <button
+        class="control-btn"
+        (click)="goBack()"
+        [disabled]="!isConnected || isLoading"
+        title="Go Back"
+      >
+        ←
+      </button>
+      <button
+        class="control-btn"
+        (click)="goForward()"
+        [disabled]="!isConnected || isLoading"
+        title="Go Forward"
+      >
+        →
+      </button>
+      <button
+        class="control-btn"
+        (click)="reload()"
+        [disabled]="!isConnected || isLoading"
+        title="Reload"
+      >
+        ↻
+      </button>
+    </div>
+
+    <div class="address-bar">
+      <input
+        type="text"
+        [(ngModel)]="addressBarUrl"
+        (keydown)="onKeyDown($event)"
+        placeholder="Enter URL (e.g., google.com)"
+        [disabled]="!isConnected || isLoading"
+        class="url-input"
+      />
+      <button
+        class="navigate-btn"
+        (click)="navigate()"
+        [disabled]="!isConnected || isLoading"
+      >
+        Go
+      </button>
+    </div>
+  </div>
+
+  <!-- Quick Links (Only show if controls are enabled) -->
+  <div class="quick-links" *ngIf="shouldShowControls()">
+    <button class="quick-link-btn" (click)="loadGoogle()" [disabled]="!isConnected || isLoading">
+      Google
+    </button>
+    <button class="quick-link-btn" (click)="loadGitHub()" [disabled]="!isConnected || isLoading">
+      GitHub
+    </button>
+    <button class="quick-link-btn" (click)="loadExample()" [disabled]="!isConnected || isLoading">
+      Example.com
+    </button>
+  </div>
+
+  <!-- Loading indicator when controls are hidden -->
+  <div *ngIf="!shouldShowControls() && isLoading" class="minimal-loading">
+    <span class="loading-spinner"></span> Loading...
+  </div>
+
+  <!-- Error Display -->
+  <div *ngIf="errorMessage" class="error-message">
+    ⚠️ {{ errorMessage }}
+  </div>
+
+  <!-- Browser Viewport -->
+  <div class="browser-viewport">
+    <canvas
+      #browserCanvas
+      class="browser-canvas"
+      (click)="onCanvasClick($event)"
+      (contextmenu)="onCanvasContextMenu($event)"
+      (wheel)="onCanvasWheel($event)"
+      tabindex="0"
+      (keypress)="onCanvasKeyPress($event)"
+      (keydown)="onCanvasKeyPress($event)"
+    ></canvas>
+  </div>
+
+  <!-- Info Panel (Only show if controls are enabled) -->
+  <div class="info-panel" *ngIf="shouldShowControls()">
+    <div class="info-item">
+      <strong>Current URL:</strong>
+      <span class="current-url">{{ currentUrl || 'Not loaded' }}</span>
+    </div>
+    <div class="info-item">
+      <strong>Instructions:</strong>
+      <ul class="instructions-list">
+        <li>Enter a URL in the address bar and click "Go" or press Enter</li>
+        <li>Click on the canvas to interact with the page</li>
+        <li>Scroll using mouse wheel on the canvas</li>
+        <li>Type directly on the canvas when focused (click it first)</li>
+        <li>Use navigation buttons to go back, forward, or reload</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Footer (Only show if controls are enabled) -->
+  <div class="browser-footer" *ngIf="shouldShowControls()">
+    <p>
+      <strong>Note:</strong> This is a real headless Chrome browser running on the server.
+      All interactions are streamed in real-time. No iframes or proxies are used.
+    </p>
+  </div>
+</div>

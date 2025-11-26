@@ -43,3 +43,9 @@ Thumbs.db
 
 # Local Netlify folder
 .netlify
+
+# Mini Browser Server
+server/dist/
+server/node_modules/
+server/.env
+server/*.log
