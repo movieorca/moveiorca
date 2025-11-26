@@ -1,0 +1,474 @@
+/**
+ * SIMIT Search Widget Styles
+ * Version: 1.0.0
+ */
+
+/* ==========================================================================
+   Base Widget Container
+   ========================================================================== */
+
+.simit-search-widget {
+    margin: 20px 0;
+    clear: both;
+}
+
+.simit-search-widget * {
+    box-sizing: border-box;
+}
+
+/* ==========================================================================
+   Search Section
+   ========================================================================== */
+
+.simit-search-section {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 30px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    text-align: center;
+}
+
+.simit-page-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1e40af;
+    margin: 0 0 15px;
+    line-height: 1.2;
+}
+
+.simit-page-subtitle {
+    font-size: 1.1rem;
+    color: #666;
+    margin: 0 0 30px;
+    line-height: 1.4;
+}
+
+/* ==========================================================================
+   Search Input Container
+   ========================================================================== */
+
+.simit-search-container {
+    display: flex;
+    gap: 0;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.simit-search-input {
+    flex: 1;
+    padding: 18px 24px;
+    font-size: 16px;
+    font-family: inherit;
+    border: 2px solid #e5e7eb;
+    border-right: none;
+    border-radius: 12px 0 0 12px;
+    outline: none;
+    background: #fff;
+    color: #1f2937;
+    transition: border-color 0.3s ease;
+}
+
+.simit-search-input:focus {
+    border-color: #3b82f6;
+}
+
+.simit-search-input::placeholder {
+    color: #9ca3af;
+}
+
+.simit-search-button {
+    background: #3b82f6;
+    border: none;
+    padding: 18px 24px;
+    border-radius: 0 12px 12px 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease;
+    min-width: 80px;
+}
+
+.simit-search-button:hover {
+    background: #2563eb;
+}
+
+.simit-search-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.simit-search-icon {
+    width: 24px;
+    height: 24px;
+    fill: #fff;
+}
+
+/* ==========================================================================
+   Modal Overlay
+   ========================================================================== */
+
+.simit-selection-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+    padding: 20px;
+}
+
+.simit-selection-modal.active {
+    display: flex;
+}
+
+.simit-modal-content {
+    background: #fff;
+    border-radius: 12px;
+    padding: 25px;
+    max-width: 500px;
+    width: 100%;
+    position: relative;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* ==========================================================================
+   Modal Header
+   ========================================================================== */
+
+.simit-modal-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e40af;
+    margin: 0 0 15px;
+}
+
+.simit-modal-text {
+    color: #666;
+    margin: 0 0 25px;
+    line-height: 1.5;
+}
+
+.simit-close-btn {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #9ca3af;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    padding: 0;
+    transition: color 0.2s ease;
+}
+
+.simit-close-btn:hover {
+    color: #6b7280;
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+
+.simit-loading-container {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+}
+
+.simit-loading-container.active {
+    display: flex;
+}
+
+.simit-spinner-ring {
+    width: 60px;
+    height: 60px;
+    border: 4px solid #e5e7eb;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    animation: simitSpin 1s linear infinite;
+}
+
+@keyframes simitSpin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* ==========================================================================
+   Options Selection
+   ========================================================================== */
+
+.simit-option-group {
+    margin: 0 0 20px;
+}
+
+.simit-option {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 10px;
+}
+
+.simit-option:last-child {
+    margin-bottom: 0;
+}
+
+.simit-option:hover {
+    background: #f8fafc;
+    border-color: #3b82f6;
+}
+
+.simit-option.selected {
+    background: #eff6ff;
+    border-color: #3b82f6;
+}
+
+.simit-option input[type="radio"] {
+    margin: 0;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.simit-option-text {
+    flex: 1;
+}
+
+.simit-option-label {
+    font-weight: 500;
+    color: #1f2937;
+    margin: 0 0 2px;
+}
+
+.simit-option-subtitle {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* ==========================================================================
+   Action Buttons
+   ========================================================================== */
+
+.simit-continue-btn {
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.simit-continue-btn:hover:not(:disabled) {
+    background: #2563eb;
+}
+
+.simit-continue-btn:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Results Display
+   ========================================================================== */
+
+.simit-results-container {
+    display: none;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.simit-results-container.active {
+    display: block;
+}
+
+.simit-results-icon {
+    width: 80px;
+    height: 80px;
+    background: #dcfce7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+}
+
+.simit-results-icon svg {
+    width: 40px;
+    height: 40px;
+    fill: #16a34a;
+}
+
+.simit-results-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e40af;
+    margin: 0 0 10px;
+}
+
+.simit-results-subtitle {
+    font-size: 16px;
+    color: #666;
+    margin: 0 0 30px;
+    line-height: 1.5;
+}
+
+.simit-view-results-link {
+    display: inline-block;
+    background: #16a34a;
+    color: #fff;
+    text-decoration: none;
+    padding: 16px 40px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.2);
+}
+
+.simit-view-results-link:hover {
+    background: #15803d;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    color: #fff;
+    text-decoration: none;
+}
+
+.simit-new-search-btn {
+    display: inline-block;
+    background: transparent;
+    color: #3b82f6;
+    text-decoration: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 15px;
+    border: 2px solid #3b82f6;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.simit-new-search-btn:hover {
+    background: #eff6ff;
+    color: #3b82f6;
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    .simit-search-section {
+        padding: 20px 15px;
+    }
+
+    .simit-page-title {
+        font-size: 2rem;
+    }
+
+    .simit-page-subtitle {
+        font-size: 1rem;
+    }
+
+    .simit-search-container {
+        max-width: 100%;
+    }
+
+    .simit-search-input {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 16px 20px;
+    }
+
+    .simit-search-button {
+        padding: 16px 20px;
+        min-width: 70px;
+    }
+
+    .simit-modal-content {
+        padding: 20px;
+        margin: 10px;
+    }
+
+    .simit-results-title {
+        font-size: 20px;
+    }
+
+    .simit-results-subtitle {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .simit-page-title {
+        font-size: 1.8rem;
+    }
+
+    .simit-search-input {
+        padding: 14px 16px;
+    }
+
+    .simit-search-button {
+        padding: 14px 16px;
+        min-width: 60px;
+    }
+
+    .simit-option {
+        padding: 12px;
+    }
+
+    .simit-view-results-link {
+        padding: 14px 30px;
+        font-size: 15px;
+    }
+}
+
+/* ==========================================================================
+   Accessibility & Print
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .simit-search-widget *,
+    .simit-search-widget *::before,
+    .simit-search-widget *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+@media print {
+    .simit-selection-modal {
+        display: none !important;
+    }
+}
