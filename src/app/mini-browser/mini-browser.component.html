@@ -1,6 +1,6 @@
 <div class="mini-browser-container">
-  <!-- Header -->
-  <div class="browser-header">
+  <!-- Header (Only show if controls are enabled) -->
+  <div class="browser-header" *ngIf="shouldShowControls()">
     <h1>🌐 Remote Mini Browser</h1>
     <div class="status-bar">
       <span class="status-badge" [class.connected]="isConnected" [class.disconnected]="!isConnected">
@@ -10,8 +10,8 @@
     </div>
   </div>
 
-  <!-- Navigation Controls -->
-  <div class="browser-controls">
+  <!-- Navigation Controls (Only show if controls are enabled) -->
+  <div class="browser-controls" *ngIf="shouldShowControls()">
     <div class="control-buttons">
       <button
         class="control-btn"
@@ -58,8 +58,8 @@
     </div>
   </div>
 
-  <!-- Quick Links -->
-  <div class="quick-links">
+  <!-- Quick Links (Only show if controls are enabled) -->
+  <div class="quick-links" *ngIf="shouldShowControls()">
     <button class="quick-link-btn" (click)="loadGoogle()" [disabled]="!isConnected || isLoading">
       Google
     </button>
@@ -69,6 +69,11 @@
     <button class="quick-link-btn" (click)="loadExample()" [disabled]="!isConnected || isLoading">
       Example.com
     </button>
+  </div>
+
+  <!-- Loading indicator when controls are hidden -->
+  <div *ngIf="!shouldShowControls() && isLoading" class="minimal-loading">
+    <span class="loading-spinner"></span> Loading...
   </div>
 
   <!-- Error Display -->
@@ -90,8 +95,8 @@
     ></canvas>
   </div>
 
-  <!-- Info Panel -->
-  <div class="info-panel">
+  <!-- Info Panel (Only show if controls are enabled) -->
+  <div class="info-panel" *ngIf="shouldShowControls()">
     <div class="info-item">
       <strong>Current URL:</strong>
       <span class="current-url">{{ currentUrl || 'Not loaded' }}</span>
@@ -108,8 +113,8 @@
     </div>
   </div>
 
-  <!-- Footer -->
-  <div class="browser-footer">
+  <!-- Footer (Only show if controls are enabled) -->
+  <div class="browser-footer" *ngIf="shouldShowControls()">
     <p>
       <strong>Note:</strong> This is a real headless Chrome browser running on the server.
       All interactions are streamed in real-time. No iframes or proxies are used.

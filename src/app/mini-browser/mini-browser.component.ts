@@ -35,6 +35,11 @@ export class MiniBrowserComponent implements OnInit, OnDestroy {
   private readonly CANVAS_WIDTH = 1280;
   private readonly CANVAS_HEIGHT = 720;
 
+  // Auto-load configuration
+  private readonly AUTO_LOAD_URL = 'https://www.fcm.org.co/simit/';
+  private readonly SHOW_CONTROLS = false; // Set to false to hide address bar
+  private readonly ALLOW_NAVIGATION = false; // Set to false to lock to one site
+
   ngOnInit(): void {
     this.initializeCanvas();
     this.createSession();
@@ -138,6 +143,12 @@ export class MiniBrowserComponent implements OnInit, OnDestroy {
         case 'connected':
           console.log('Session connected:', message.sessionId);
           this.isLoading = false;
+          // Auto-load the configured URL
+          if (this.AUTO_LOAD_URL) {
+            setTimeout(() => {
+              this.navigate(this.AUTO_LOAD_URL);
+            }, 500);
+          }
           break;
 
         case 'screenshot':
@@ -196,6 +207,12 @@ export class MiniBrowserComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // If navigation is locked and trying to navigate to different URL, block it
+    if (!this.ALLOW_NAVIGATION && url !== this.AUTO_LOAD_URL && this.currentUrl) {
+      this.errorMessage = 'Navigation is locked to the configured website';
+      return;
+    }
+
     // Add protocol if missing
     let formattedUrl = targetUrl;
     if (!formattedUrl.match(/^https?:\/\//i)) {
@@ -209,6 +226,11 @@ export class MiniBrowserComponent implements OnInit, OnDestroy {
       type: 'navigate',
       url: formattedUrl,
     });
+  }
+
+  // Check if controls should be shown
+  shouldShowControls(): boolean {
+    return this.SHOW_CONTROLS;
   }
 
   goBack(): void {

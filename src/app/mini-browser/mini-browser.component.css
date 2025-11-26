@@ -55,6 +55,37 @@
   50% { opacity: 0.5; }
 }
 
+/* Minimal loading indicator */
+.minimal-loading {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(33, 150, 243, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Browser Controls */
 .browser-controls {
   display: flex;
