@@ -130,6 +130,9 @@ class SIMIT_Estado_Cuenta {
             justify-content: center;
             z-index: 999999;
             animation: simitFadeIn 0.3s ease-out;
+            padding: 10px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .simit-popup-overlay.active {
@@ -140,12 +143,14 @@ class SIMIT_Estado_Cuenta {
             background: white;
             border-radius: 16px;
             max-width: 900px;
-            width: 90%;
+            width: 100%;
             max-height: 90vh;
             overflow-y: auto;
             position: relative;
             animation: simitSlideUp 0.4s ease-out;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            -webkit-overflow-scrolling: touch;
+            margin: auto;
         }
 
         .simit-popup-close {
@@ -512,27 +517,44 @@ class SIMIT_Estado_Cuenta {
             }
         }
 
+        /* Remove tap highlight on mobile */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
+            .simit-popup-overlay {
+                padding: 0;
+                align-items: flex-start;
+            }
+
             .simit-popup-container {
-                width: 95%;
-                max-height: 95vh;
+                width: 100%;
+                max-height: 100vh;
+                min-height: 100vh;
+                border-radius: 0;
+                margin: 0;
             }
 
             .simit-search-widget {
-                padding: 30px 15px;
+                padding: 20px 15px;
+                min-height: auto;
             }
 
             .simit-search-section {
-                padding: 20px 0;
+                padding: 15px 0;
             }
 
             .simit-page-title {
-                font-size: 2rem;
+                font-size: 1.75rem;
+                margin-bottom: 10px;
             }
 
             .simit-page-subtitle {
-                font-size: 1rem;
+                font-size: 0.95rem;
+                margin-bottom: 20px;
             }
 
             .simit-search-container {
@@ -541,36 +563,107 @@ class SIMIT_Estado_Cuenta {
 
             .simit-search-input {
                 font-size: 16px;
-                padding: 16px 20px;
+                padding: 14px 16px;
             }
 
             .simit-search-button {
-                padding: 16px 20px;
-                min-width: 70px;
+                padding: 14px 20px;
+                min-width: 60px;
+            }
+
+            .simit-popup-close {
+                top: 15px;
+                right: 15px;
+                width: 44px;
+                height: 44px;
+                font-size: 28px;
             }
 
             .simit-options-container,
             .simit-results-container {
-                padding: 30px 15px;
+                padding: 20px 15px;
+            }
+
+            .simit-options-title {
+                font-size: 18px;
+            }
+
+            .simit-options-text {
+                font-size: 14px;
+            }
+
+            .simit-option {
+                padding: 12px;
+                margin-bottom: 8px;
+            }
+
+            .simit-continue-btn {
+                padding: 14px 24px;
+                font-size: 15px;
             }
 
             .simit-results-title {
                 font-size: 20px;
             }
+
+            .simit-results-subtitle {
+                font-size: 14px;
+            }
+
+            .simit-view-results-link {
+                padding: 14px 32px;
+                font-size: 15px;
+            }
+
+            .simit-trigger-button {
+                padding: 14px 32px;
+                font-size: 16px;
+                margin-left: 0;
+                width: 100%;
+                max-width: 100%;
+            }
         }
 
         @media (max-width: 480px) {
             .simit-page-title {
-                font-size: 1.8rem;
+                font-size: 1.5rem;
+            }
+
+            .simit-page-subtitle {
+                font-size: 0.9rem;
             }
 
             .simit-search-input {
-                padding: 14px 16px;
+                padding: 12px 14px;
+                font-size: 16px;
             }
 
             .simit-search-button {
-                padding: 14px 16px;
-                min-width: 60px;
+                padding: 12px 16px;
+                min-width: 54px;
+            }
+
+            .simit-option {
+                padding: 10px;
+            }
+
+            .simit-option-label {
+                font-size: 14px;
+            }
+
+            .simit-option-subtitle {
+                font-size: 12px;
+            }
+        }
+
+        /* iOS specific fixes */
+        @supports (-webkit-touch-callout: none) {
+            .simit-search-input {
+                font-size: 16px !important;
+            }
+
+            .simit-popup-container {
+                -webkit-overflow-scrolling: touch;
             }
         }
         ';
@@ -589,10 +682,22 @@ class SIMIT_Estado_Cuenta {
             $(document).on('click', '.simit-trigger-button', function(e) {
                 e.preventDefault();
                 $('#simitPopupOverlay').addClass('active');
-                $('body').css('overflow', 'hidden');
+
+                // Better mobile scroll lock
+                $('body').css({
+                    'overflow': 'hidden',
+                    'position': 'fixed',
+                    'width': '100%',
+                    'height': '100%'
+                });
 
                 // Reset to initial state
                 resetSimitPopup();
+
+                // Focus on input for better mobile UX
+                setTimeout(function() {
+                    $('#simitSearchInput').focus();
+                }, 300);
             });
 
             // Reset popup to initial state
@@ -609,7 +714,15 @@ class SIMIT_Estado_Cuenta {
             // Close popup
             function closeSimitPopup() {
                 $('#simitPopupOverlay').removeClass('active');
-                $('body').css('overflow', '');
+
+                // Restore body scroll
+                $('body').css({
+                    'overflow': '',
+                    'position': '',
+                    'width': '',
+                    'height': ''
+                });
+
                 resetSimitPopup();
             }
 
