@@ -3,11 +3,17 @@
  * Plugin Name: SIMIT Estado de Cuenta
  * Plugin URI: https://simit-por-placa.com.co
  * Description: Plugin para consultar comparendos, multas y acuerdos de pago del SIMIT en un popup
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: SIMIT-Por-Placa.com.co
  * Author URI: https://simit-por-placa.com.co
  * License: GPL v2 or later
  * Text Domain: simit-estado-cuenta
+ *
+ * IMPORTANT: For Cloudflare users
+ * Add this Page Rule in Cloudflare:
+ * - URL: *simit* or your specific page URL
+ * - Setting: Cache Level = Bypass
+ * OR exclude jQuery and this plugin from caching
  */
 
 // Exit if accessed directly
@@ -23,6 +29,9 @@ class SIMIT_Estado_Cuenta {
 
         // Enqueue scripts and styles
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+
+        // Add cache-busting headers
+        add_action('wp_head', array($this, 'add_no_cache_headers'), 1);
     }
 
     /**
@@ -44,6 +53,7 @@ class SIMIT_Estado_Cuenta {
         ob_start();
         ?>
         <button class="simit-trigger-button"
+                data-simit-version="1.0.1"
                 style="background-color: <?php echo esc_attr($atts['bg_color']); ?>;
                        color: <?php echo esc_attr($atts['text_color']); ?>;
                        margin-top: <?php echo esc_attr($atts['margin_top']); ?>;
@@ -60,16 +70,35 @@ class SIMIT_Estado_Cuenta {
     }
 
     /**
+     * Add no-cache headers to prevent caching issues
+     */
+    public function add_no_cache_headers() {
+        global $post;
+        if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'simit_button')) {
+            // Add meta tags to prevent caching
+            echo '<!-- SIMIT Estado de Cuenta - Dynamic Content -->' . "\n";
+            echo '<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">' . "\n";
+            echo '<meta http-equiv="Pragma" content="no-cache">' . "\n";
+            echo '<meta http-equiv="Expires" content="0">' . "\n";
+        }
+    }
+
+    /**
      * Enqueue CSS and JS
      */
     public function enqueue_assets() {
-        // Enqueue styles
-        wp_add_inline_style('wp-block-library', $this->get_inline_css());
+        // Always enqueue jQuery (required dependency)
+        wp_enqueue_script('jquery');
 
-        // Enqueue script
+        // Enqueue inline styles - use a dedicated handle to avoid cache issues
+        wp_register_style('simit-estado-cuenta-dummy', false);
+        wp_enqueue_style('simit-estado-cuenta-dummy');
+        wp_add_inline_style('simit-estado-cuenta-dummy', $this->get_inline_css());
+
+        // Enqueue inline script with jQuery dependency
         wp_add_inline_script('jquery', $this->get_inline_js());
 
-        // Add popup HTML to footer
+        // Always add popup HTML to footer (needed for cached pages)
         add_action('wp_footer', array($this, 'add_popup_html'));
     }
 
@@ -675,6 +704,9 @@ class SIMIT_Estado_Cuenta {
     private function get_inline_js() {
         return "
         jQuery(document).ready(function($) {
+            // Debug: Confirm script is loaded
+            console.log('SIMIT Estado de Cuenta v1.0.1 - Script Loaded');
+
             let simitSelectedOption = null;
             let simitSearchValue = '';
 
